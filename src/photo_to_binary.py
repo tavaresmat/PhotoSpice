@@ -10,6 +10,7 @@ def binarize (image):
     closed_threshold = cv2.morphologyEx (threshold_image, cv2.MORPH_CLOSE, kernel, iterations=3)
     return closed_threshold
 
+
 samples = None
 final = None
 for i in range (1,6): 
