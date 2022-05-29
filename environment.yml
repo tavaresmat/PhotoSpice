@@ -7,4 +7,5 @@ dependencies:
   - matplotlib
   - matplotlib-inline
   - numpy
+  - albumentations
 prefix: /home/tine/anaconda3/envs/photospice-env
