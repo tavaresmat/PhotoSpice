@@ -19,9 +19,6 @@ def binarize (image:np.array) -> np.array:
     closed_threshold = cv2.morphologyEx (threshold_image, cv2.MORPH_CLOSE, kernel, iterations=2)
     return closed_threshold
 
-def augment():
-    pipeline = alb.Compose (
-        [],
-        bbox_params=alb.BboxParams(format='yolo', min_visibility=0.8, label_fields=['class_labels'])
-    )
-    raise NotImplementedError("Tiné: ainda não terminei essa funcionalidade")
+def open_rgb_image (path):
+    cv2_img = cv2.imread(path)
+    return cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)

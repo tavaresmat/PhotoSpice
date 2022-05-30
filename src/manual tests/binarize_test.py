@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import binarize
+from src.image_manipulation.utils import binarize
 
 samples = None
 final = None
-for i in range (4,8): 
+for i in range (3,6): 
     photo_path = f'images/colored/sampleA{i}.jpg'
     image = cv2.imread(photo_path)
     binarized = cv2.resize(binarize(image), (1000, 1000))
