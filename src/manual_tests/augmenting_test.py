@@ -9,16 +9,20 @@ from src.augmentation.bbox_manipulation import *
 from src.image_manipulation.utils import open_rgb_image
 from src.augmentation.perform_augmentation import augmentation_pipeline
 
-imagepath = 'dataset/images/sampleA5.jpg' # image that will be tested for augmentation
-bboxespath = 'dataset/labels/sampleA5.txt' # bboxes file in yolo format
+imagepath = 'dataset/images/sampleA7.jpg' # image that will be tested for augmentation
+bboxespath = 'dataset/labels/sampleA7.txt' # bboxes file in yolo format
 image = open_rgb_image (imagepath)
 bboxes = load_bbox_list(bboxespath)
 
 imgs = []
 for i in range (6):
-    transformed = augmentation_pipeline(image=image, bboxes=bboxes)
-    transformed_image = transformed['image']
-    transformed_bboxes = transformed['bboxes']
+    if i == 0:
+        transformed_image = image.copy()
+        transformed_bboxes = bboxes
+    else:
+        transformed = augmentation_pipeline(image=image, bboxes=bboxes)
+        transformed_image = transformed['image']
+        transformed_bboxes = transformed['bboxes']
     imgs.append (transformed_image)
     draw_yolo_bbox (transformed_image, transformed_bboxes)
     #save_bbox_list (f'{i}.txt', transformed_bboxes)

@@ -24,12 +24,12 @@ augmentation_pipeline = alb.Compose (
             ),
             alb.augmentations.transforms.GaussNoise (
                 var_limit=100, mean=0, per_channel=False, always_apply=True
-            ),
+            )
         ],
         bbox_params=alb.BboxParams(format='yolo', min_visibility=0.7)
 )
 
-def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:int = 6, division:"list[float]"=[1.0]):
+def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:int = 6, division:list[float]=[1.0]):
     """
     Performs data augmentation on the directory indicated
 
