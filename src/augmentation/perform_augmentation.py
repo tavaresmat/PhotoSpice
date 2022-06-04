@@ -9,22 +9,31 @@ import albumentations as alb
 
 from src.augmentation.bbox_manipulation import (
     load_bbox_list,
-    save_bbox_list,
-    plot_bbox_from_object
+    save_bbox_list
 )
 from src.image_manipulation.utils import open_rgb_image
 
+GENERATED_IMAGES_SIZE = {'height':400, 'width':600}
+
+just_resize = alb.Compose ([
+            alb.augmentations.geometric.resize.Resize (**GENERATED_IMAGES_SIZE, always_apply=True)
+        ],
+        bbox_params=alb.BboxParams(format='yolo', min_visibility=0.7)
+    )
+
 augmentation_pipeline = alb.Compose (
         [
-            alb.augmentations.transforms.Flip(p=0.5),
+            alb.augmentations.geometric.resize.Resize (**GENERATED_IMAGES_SIZE, always_apply=True),
+            alb.augmentations.geometric.transforms.Perspective (scale=(0.04, 0.09)),
+            alb.augmentations.transforms.Flip(p=0.6),
             alb.augmentations.geometric.transforms.Affine (
                 scale=(0.7,0.9), translate_percent=(-0.2, 0.2), translate_px=None,
-                rotate=(-23,23), shear={'x':(-18,18) , 'y': (-18,18)},
+                rotate=(-25,25), shear={'x':(-17,17) , 'y': (-17,17)},
                 cval=0, always_apply=True
             ),
             alb.augmentations.transforms.GaussNoise (
-                var_limit=100, mean=0, per_channel=False, always_apply=True
-            )
+                var_limit=200, mean=0, per_channel=False, always_apply=True
+            ),
         ],
         bbox_params=alb.BboxParams(format='yolo', min_visibility=0.7)
 )
@@ -84,12 +93,11 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
             for i in range (aug_scale):
                 if i != 0:          
                     transformed = augmentation_pipeline (image=image, bboxes=bboxes)
-                    transformed_image = transformed['image']
-                    transformed_bboxes = transformed['bboxes']
                 else: # no augmentation on i == 0
-                    transformed_image = image
-                    transformed_bboxes = bboxes
+                    transformed = just_resize (image=image, bboxes=bboxes)
 
+                transformed_image = transformed['image']
+                transformed_bboxes = transformed['bboxes']
                 new_name = imagename[:dot_pos] + f'.var{i}' 
                 new_imagepath = os.path.join(tempdirname, new_name + imagename[dot_pos:])
                 new_labelspath = os.path.join (tempdirname, new_name + '.txt')
@@ -124,4 +132,4 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
                 print (f'"{imgname}" derived images written into final destination successfully')
 
 if __name__ == "__main__":
-    augmentation_on_dataset ('dataset/', 'augmented_dataset2/', aug_scale=10 , division=[0.1, 0.2, 0.7])
+    augmentation_on_dataset ('simplified_dataset/', 'augmented_colordata1/', aug_scale=8 , division=[0.8, 0.2])
