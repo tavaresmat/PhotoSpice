@@ -6,8 +6,8 @@ from src.image_manipulation.utils import binarize
 
 samples = None
 final = None
-for i in range (3,6): 
-    photo_path = f'images/colored/sampleA{i}.jpg'
+for i in range (0,3): 
+    photo_path = f'dataset/cimages/sampleA{i}.jpg'
     image = cv2.imread(photo_path)
     binarized = cv2.resize(binarize(image), (1000, 1000))
     resized = cv2.resize (image, (1000,1000))

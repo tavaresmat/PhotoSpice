@@ -1,6 +1,7 @@
 import os
 from random import shuffle
 from tempfile import TemporaryDirectory
+from turtle import clear
 
 import matplotlib.pyplot as plt
 import numpy as np

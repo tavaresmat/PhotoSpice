@@ -1,6 +1,6 @@
 from src.augmentation.bbox_manipulation import plot_bbox_from_path
 
 plot_bbox_from_path (
-    'dataset/images/sampleA0.jpg',
-    'dataset/labels/sampleA0.txt'
+    'dataset/bimages/sampleB (2).jpg',
+    'dataset/labels/sampleB (2).txt'
 )

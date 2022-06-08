@@ -1,4 +1,5 @@
 from random import randint
+from cv2 import norm
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -88,10 +89,7 @@ def draw_yolo_bbox (img:np.array, bbox_list:"list[list[any]]")-> None:
         if b > dh - 1:
             b = dh - 1
 
-        if class_label not in __class_color.keys():
-            __class_color[class_label] = randcolor()
-
-        color = __class_color[class_label]
+        color = load_or_create_color (class_label)
         cv2.rectangle(img, (l, t), (r, b), color, dw//300)
         font_scale, font_thickness = 0.3, 2
         ((text_width, text_height), _) = cv2.getTextSize(class_label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
@@ -127,3 +125,22 @@ def plot_bbox_from_object(img:np.array, bboxes:"list[list[any]]")->None:
     draw_yolo_bbox(image, bboxes )
     plt.imshow (image)
     plt.show()
+
+def load_or_create_color(class_label):
+    if class_label not in __class_color.keys():
+            similar_color = True
+            random_color = randcolor()
+            '''while(similar_color):
+                similar_color = False
+                random_color = randcolor()
+                for old_color in __class_color.values():
+                    if norm (
+                        np.array(random_color) -
+                        np.array(old_color)
+                    ) < 150:
+                        similar_color = True
+                        break'''
+
+            __class_color[class_label] = random_color
+                        
+    return __class_color[class_label]
