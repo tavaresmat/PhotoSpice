@@ -1,10 +1,21 @@
-name: photospice-env
+name: photospice
 channels:
   - defaults
 dependencies:
-  - python=3.9
-  - opencv
-  - matplotlib
-  - matplotlib-inline
+  - seaborn
+  - albumentations
+  - pillow
+  - pyyaml
   - numpy
-prefix: /home/tine/anaconda3/envs/photospice-env
+  - opencv
+  - torchaudio
+  - scipy
+  - torchvision
+  - cpuonly
+  - matplotlib-inline
+  - pytorch
+  - matplotlib
+  - protobuf
+  - tqdm
+  - pandas
+prefix: /home/tine/anaconda3/envs/photospice

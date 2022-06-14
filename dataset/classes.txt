@@ -1,0 +1,7 @@
+capacitor
+inductor
+voltage
+signal
+ground
+diode
+resistor

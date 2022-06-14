@@ -1,0 +1,5 @@
+train: /content/drive/MyDrive/yolov5training/augmented_dataset/0/images
+val: /content/drive/MyDrive/yolov5training/augmented_dataset/1/images
+
+nc: 7
+names: ['capacitor', 'inductor', 'voltage', 'signal', 'ground', 'diode', 'resistor']

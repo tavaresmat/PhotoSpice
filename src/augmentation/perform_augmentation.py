@@ -28,12 +28,12 @@ augmentation_pipeline = alb.Compose (
             alb.augmentations.geometric.transforms.Perspective (scale=(0.04, 0.09)),
             alb.augmentations.transforms.Flip(p=0.6),
             alb.augmentations.geometric.transforms.Affine (
-                scale=(0.7,0.9), translate_percent=(-0.2, 0.2), translate_px=None,
-                rotate=(-25,25), shear={'x':(-17,17) , 'y': (-17,17)},
+                scale=(0.7,0.9), translate_percent=(-0.25, 0.25), translate_px=None,
+                rotate=(-35,35), shear={'x':(-18,18) , 'y': (-18,18)},
                 cval=0, always_apply=True
             ),
             alb.augmentations.transforms.GaussNoise (
-                var_limit=200, mean=0, per_channel=False, always_apply=True
+                var_limit=300, mean=0, per_channel=False, always_apply=True
             ),
         ],
         bbox_params=alb.BboxParams(format='yolo', min_visibility=0.7)
@@ -133,4 +133,4 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
                 print (f'"{imgname}" derived images written into final destination successfully')
 
 if __name__ == "__main__":
-    augmentation_on_dataset ('simplified_dataset/', 'augmented_colordata1/', aug_scale=8 , division=[0.8, 0.2])
+    augmentation_on_dataset ('to_augment/', 'augmented_dataset/', aug_scale=5, division=[0.8, 0.2])
