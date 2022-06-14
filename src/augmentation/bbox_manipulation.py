@@ -1,8 +1,10 @@
 from random import randint
 from cv2 import norm
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import cv2
 
 from ..image_manipulation.utils import open_rgb_image
@@ -144,3 +146,45 @@ def load_or_create_color(class_label):
             __class_color[class_label] = random_color
                         
     return __class_color[class_label]
+
+def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=2, thickness=4)-> None:
+    """
+    Draw the bbox list information on the image
+
+    Args:
+        img (np.array): image that will receive "bbox_list" information
+            graphically over it
+        bbox_list (list[list[any]]): list of lists representing bbox
+            classification positions and labels
+    """
+    for _, prediction in pred_dataframe.iterrows():
+            print (prediction['name'])
+            color = load_or_create_color (prediction['name'])
+            values = {}
+            for field in ['xmin', 'ymin', 'xmax', 'ymax']:
+                values[field] = int (prediction[field])
+
+            cv2.rectangle(img, (values['xmin'], values['ymin']), (values['xmax'], values['ymax']), color, thickness)
+            font_scale, font_thickness = fontsize, thickness
+            ((text_width, text_height), _) = cv2.getTextSize(prediction['name'], cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+            cv2.putText(img, prediction['name'], (values['xmin'], int(values['ymin'] - 0.3 * text_height)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color,
+                    font_thickness)
+
+def plot_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=2, thickness=4)->None:
+    """
+    Plot the bbox list information over the image given
+
+    Args: 
+        img (np.array): image that will be a background to "bbox_list"
+            information to be displayed graphically over it
+        bboxes (list[list[any]]): list of lists representing bbox
+            classification positions and labels to be plotted
+    """
+    try:
+        plt.style.use('ggplot')
+        matplotlib.use( 'tkagg' )
+    finally:
+        image = img.copy()
+        draw_inference_bbox(image, pred_dataframe, fontsize, thickness)
+        plt.imshow (image)
+        plt.show()
