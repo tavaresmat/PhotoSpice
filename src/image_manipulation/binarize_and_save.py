@@ -10,7 +10,7 @@ if __name__ == '__main__':
     for file in os.listdir(color_images_dir):
         filepath = os.path.join(color_images_dir, file)
         image = cv2.imread(filepath)
-        binary_image = binarize(image, kernel_dimension=(4, 4))
+        binary_image = binarize(image)
         cv2.imwrite (os.path.join(
                 binary_images_dir,
                 file

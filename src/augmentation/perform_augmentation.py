@@ -14,12 +14,12 @@ from src.augmentation.bbox_manipulation import (
 )
 from src.image_manipulation.utils import open_rgb_image
 
-GENERATED_IMAGES_SIZE = {'height':400, 'width':600}
+GENERATED_IMAGES_SIZE = {'height':600, 'width':800}
 
 just_resize = alb.Compose ([
             alb.augmentations.geometric.resize.Resize (**GENERATED_IMAGES_SIZE, always_apply=True)
         ],
-        bbox_params=alb.BboxParams(format='yolo', min_visibility=0.7)
+        bbox_params=alb.BboxParams(format='yolo', min_visibility=0.82)
     )
 
 augmentation_pipeline = alb.Compose (
@@ -28,12 +28,12 @@ augmentation_pipeline = alb.Compose (
             alb.augmentations.geometric.transforms.Perspective (scale=(0.04, 0.09)),
             alb.augmentations.transforms.Flip(p=0.6),
             alb.augmentations.geometric.transforms.Affine (
-                scale=(0.7,0.9), translate_percent=(-0.25, 0.25), translate_px=None,
-                rotate=(-35,35), shear={'x':(-18,18) , 'y': (-18,18)},
+                scale=(0.85,1), translate_percent=(-0.02, 0.02),
+                rotate=(-35,35), shear={'x':(-15,15) , 'y': (-15,15)},
                 cval=0, always_apply=True
             ),
             alb.augmentations.transforms.GaussNoise (
-                var_limit=300, mean=0, per_channel=False, always_apply=True
+                var_limit=60, mean=0, per_channel=False, always_apply=True
             ),
         ],
         bbox_params=alb.BboxParams(format='yolo', min_visibility=0.7)
@@ -68,10 +68,11 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
     assert os.path.exists (labels_source_dir)
     assert os.path.exists (img_souce_dir)
 
+    splitting = (len(division) > 1)
     for i in range(len(division)):
         destination_paths = [
-            os.path.join (destination_dir, f'{i}/images'),
-            os.path.join (destination_dir, f'{i}/labels'),
+            os.path.join (destination_dir, f'{i}/images' if splitting else 'images'),
+            os.path.join (destination_dir, f'{i}/labels' if splitting else 'labels'),
         ]
         for path in destination_paths:
             if not os.path.exists(path):
@@ -117,14 +118,14 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
                 os.replace(imgpath,
                     os.path.join (
                         destination_dir,
-                        f'{i}/images',
+                        f'{i}/images' if splitting else f'images',
                         imgname
                     )
                 )
                 os.replace(bboxespath,
                     os.path.join (
                         destination_dir,
-                        f'{i}/labels',
+                        f'{i}/labels' if splitting else f'labels',
                         imgname[:imgname.find('.', -5)] + '.txt'
                     )
                 )
@@ -133,4 +134,4 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
                 print (f'"{imgname}" derived images written into final destination successfully')
 
 if __name__ == "__main__":
-    augmentation_on_dataset ('to_augment/', 'augmented_dataset/', aug_scale=5, division=[0.8, 0.2])
+    augmentation_on_dataset ('dataset/train', 'dataset/aug_train', aug_scale=4)

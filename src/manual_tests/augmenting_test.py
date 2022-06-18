@@ -9,9 +9,9 @@ from src.augmentation.bbox_manipulation import *
 from src.image_manipulation.utils import open_rgb_image
 from src.augmentation.perform_augmentation import augmentation_pipeline, just_resize
 
-img = 'sampleA1'
-imagepath = f'dataset/bimages/{img}.jpg' # image that will be tested for augmentation
-bboxespath = f'dataset/labels/{img}.txt' # bboxes file in yolo format
+img = 'sampleC9'
+imagepath = f'dataset/train/images/{img}.jpeg' # image that will be tested for augmentation
+bboxespath = f'dataset/train/labels/{img}.txt' # bboxes file in yolo format
 image = open_rgb_image (imagepath)
 bboxes = load_bbox_list(bboxespath)
 

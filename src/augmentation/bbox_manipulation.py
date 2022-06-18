@@ -147,7 +147,7 @@ def load_or_create_color(class_label):
                         
     return __class_color[class_label]
 
-def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=2, thickness=4)-> None:
+def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=None, thickness=None)-> None:
     """
     Draw the bbox list information on the image
 
@@ -157,8 +157,13 @@ def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=2
         bbox_list (list[list[any]]): list of lists representing bbox
             classification positions and labels
     """
+
+    if fontsize is None:
+        fontsize = img.shape[1]/1150
+    if thickness is None:
+        thickness = img.shape[1]//300
+
     for _, prediction in pred_dataframe.iterrows():
-            print (prediction['name'])
             color = load_or_create_color (prediction['name'])
             values = {}
             for field in ['xmin', 'ymin', 'xmax', 'ymax']:
@@ -166,11 +171,24 @@ def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=2
 
             cv2.rectangle(img, (values['xmin'], values['ymin']), (values['xmax'], values['ymax']), color, thickness)
             font_scale, font_thickness = fontsize, thickness
-            ((text_width, text_height), _) = cv2.getTextSize(prediction['name'], cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
-            cv2.putText(img, prediction['name'], (values['xmin'], int(values['ymin'] - 0.3 * text_height)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color,
-                    font_thickness)
+            ((text_width, text_height), _) = cv2.getTextSize(prediction['name'], cv2.FONT_HERSHEY_TRIPLEX, font_scale, thickness)
+            ytext = int(values['ymin'] - 0.3 * text_height)
+            if ytext < 0 :
+                ytext = int(values['ymax'] + 0.3 * text_height)
 
-def plot_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=2, thickness=4)->None:
+            cv2.putText(
+                img,
+                f"{prediction['name']}({ str(prediction['confidence']*100)[:5] }%)",
+                (
+                    values['xmin'],
+                    ytext
+                ),
+                cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            (*color, 125),
+            font_thickness)
+
+def plot_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=None, thickness=None)->None:
     """
     Plot the bbox list information over the image given
 

@@ -1,7 +1,9 @@
+diode
 capacitor
 inductor
+resistor
 voltage
 signal
-ground
-diode
-resistor
+ground0
+ground1
+ground2
