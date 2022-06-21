@@ -173,8 +173,8 @@ def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=N
             font_scale, font_thickness = fontsize, thickness
             ((text_width, text_height), _) = cv2.getTextSize(prediction['name'], cv2.FONT_HERSHEY_TRIPLEX, font_scale, thickness)
             ytext = int(values['ymin'] - 0.3 * text_height)
-            if ytext < 0 :
-                ytext = int(values['ymax'] + 0.3 * text_height)
+            if ytext - text_height < 0 :
+                ytext = int(values['ymax'] + 1.2 * text_height)
 
             cv2.putText(
                 img,
