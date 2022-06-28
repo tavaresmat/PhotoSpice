@@ -1,16 +1,20 @@
 from matplotlib import pyplot as plt
 import matplotlib
+import numpy as np
+import pandas
 import torch
 import cv2
 from src.augmentation.bbox_manipulation import plot_inference_bbox
 from src.image_manipulation.utils import binarize
 
+POS_ATTR = ['xmin', 'xmax', 'ymin', 'ymax']
+
 class ComponentDetector():
     
-    model = None
-    size = None
-    __last_predictions = None
-    __last_image = None
+    model:any = None
+    size:int = None
+    __last_predictions:pandas.DataFrame = None
+    __last_image:np.ndarray = None
 
     def __init__(self, size=600, weights='models/best 400ep map.91.pt'):
         self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights, device='cpu')
@@ -45,3 +49,22 @@ class ComponentDetector():
         finally:
             plt.imshow(binarize(self.__last_image))
             plt.show()
+
+    def generate_netlist(self):
+        components = self.__last_predictions.copy()
+        components['value'] = 0
+
+        for index, data in components.iterrows():
+            components.at[index, 'value'] = self.nearest_value (data[POS_ATTR])
+
+        components['cathode'] = components['anode'] = None
+
+        # propagatint nodes ...
+        #for index, data in components.iterrows(): ...
+        raise NotImplementedError()
+
+
+    def nearest_value(position:pandas.Series):
+        raise NotImplementedError() 
+
+
