@@ -1,3 +1,6 @@
+from ctypes.wintypes import PDWORD
+import pandas as pd
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,3 +33,13 @@ def binarize (image:np.array, kernel_dimension:tuple=None) -> np.array:
 def open_rgb_image (path):
     cv2_img = cv2.imread(path)
     return cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
+
+def point_inside_bbox (point:np.ndarray, bbox:pd.Series):
+        return (point[0] > bbox['xmin']) and (point[0] < bbox['xmax']) \
+        and (point[1] > bbox['ymin']) and (point[1] < bbox['ymax'])
+
+def bbox_center (bbox: pd.Series):
+    return .5 * np.array([
+        bbox['xmin'] + bbox['xmax'],
+        bbox['ymin'] + bbox['ymax']
+    ])
