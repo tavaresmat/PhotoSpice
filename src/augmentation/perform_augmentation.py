@@ -1,4 +1,5 @@
 import os
+import shutil
 from random import shuffle
 from tempfile import TemporaryDirectory
 from turtle import clear
@@ -26,7 +27,7 @@ augmentation_pipeline = alb.Compose (
         [
             alb.augmentations.geometric.resize.Resize (**GENERATED_IMAGES_SIZE, always_apply=True),
             alb.augmentations.geometric.transforms.Perspective (scale=(0.04, 0.09)),
-            alb.augmentations.transforms.Flip(p=0.6),
+            #alb.augmentations.transforms.Flip(p=0.6),
             alb.augmentations.geometric.transforms.Affine (
                 scale=(0.85,1), translate_percent=(-0.02, 0.02),
                 rotate=(-35,35), shear={'x':(-15,15) , 'y': (-15,15)},
@@ -115,14 +116,14 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
             moved_now = 0
             while (moved_now < round(total_new_files * division[i])):
                 imgpath, bboxespath, imgname = new_files[moving_file]
-                os.replace(imgpath,
+                shutil.move(imgpath,
                     os.path.join (
                         destination_dir,
                         f'{i}/images' if splitting else f'images',
                         imgname
                     )
                 )
-                os.replace(bboxespath,
+                shutil.move(bboxespath,
                     os.path.join (
                         destination_dir,
                         f'{i}/labels' if splitting else f'labels',
@@ -134,4 +135,4 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
                 print (f'"{imgname}" derived images written into final destination successfully')
 
 if __name__ == "__main__":
-    augmentation_on_dataset ('dataset/train', 'dataset/aug_train', aug_scale=4)
+    augmentation_on_dataset ('other_datasets/numbers', 'other_datasets/numbers_augmented', aug_scale=10)
