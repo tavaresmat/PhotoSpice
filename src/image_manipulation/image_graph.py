@@ -1,5 +1,6 @@
 
 from argparse import ArgumentError
+from email.generator import Generator
 import numpy as np
 import pandas as pd
 
@@ -20,7 +21,7 @@ class ImageGraph:
             binarized_image = binarize(image) 
         self.binarized_image = binarized_image
             
-    def connections_points(self, bbox_data:pd.Series) -> list[np.ndarray]:
+    def outpoints(self, bbox_data:pd.Series) -> list[np.ndarray]:
         '''
         Lists all not-connected points of image that intersects with 
         the bounding box described in "bbox-data"
@@ -31,10 +32,10 @@ class ImageGraph:
 
         raise NotImplementedError()
 
-    def list_connected(self, start_point:np.ndarray, bboxes_dataframe:pd.DataFrame) -> list[int, np.ndarray]:
+    def bfs_bbox_collisions(self, start_point:np.ndarray, bboxes_dataframe:pd.DataFrame) -> tuple[int, np.ndarray]:
         '''
-        Lists the components connected to "start_point", according to 
-        "bboxes_dataframe" data
+        return index of components connected in image to "start_point", according to 
+        "bboxes_dataframe" data, and also returns the point of collision between the search and the bbox
         '''
 
         raise NotImplementedError()

@@ -1,13 +1,28 @@
+from ast import Continue
+from cmath import inf
 from matplotlib import pyplot as plt
 import matplotlib
 import numpy as np
 import pandas
 import torch
 import cv2
-from srca.image_manipulation.image_graph import ImageGraph
+from math import pi
+
+from src.image_manipulation.image_graph import ImageGraph
 from src.augmentation.bbox_manipulation import plot_inference_bbox
 from src.image_manipulation.utils import bbox_center, binarize, point_inside_bbox
+from yolo_inference.node_detection_utils import (
+        array_to_string,
+        bboxes_collisions,
+        string_to_array,
+        bboxes_centers_and_fill_outpoints,
+        filter_collision,
+        angle_between,
+        bfs_anchieved_vertices_and_lesser_node
+)
 
+MINIMUM_LINKING_NODE_ANGLE = 100 *(pi/180)
+POLARIZED_COMPONENTS = ['diode', 'voltage', 'signal']
 POS_ATTR = ['xmin', 'xmax', 'ymin', 'ymax']
 
 class ComponentDetector():
@@ -52,82 +67,135 @@ class ComponentDetector():
             plt.show()
 
     def generate_netlist(self):
-        components = self.__last_predictions.copy()
-        image = self.__last_image.copy()
+        components = self.__last_predictions.copy() # components list
+        image = self.__last_image.copy() 
         img_graph = ImageGraph(binarized_image=image)
+
+        components_outpoints = [[] for _,_ in components.iterrows()] 
+        bboxes_centers = bboxes_centers_and_fill_outpoints(
+            components,
+            img_graph, 
+            components_outpoints # filled by reference
+        )
 
         components['value'] = 0
         for index, data in components.iterrows(): # discovering and saving values
             components.at[index, 'value'] = self.nearest_value (data[POS_ATTR])
 
-        components_out_points = [{} for _,_ in components.iterrows()] 
-        bboxes_centers = []
+        collisions = bboxes_collisions (components)
+        for collision in collisions:
+            components = filter_collision(components, collision)
 
-        for index, data in components.iterrows(): # saving centers and out-connections of each component
-            component_center = bbox_center (data)
-            bboxes_centers.append (component_center)
-            connections_beginnings:list[np.ndarray] = img_graph.connections_points(data)
-            for array in connections_beginnings:
-                components_out_points[index][array_to_string(array)] = None
+        # constructing outpoints graph
+        vertices_number = 0
+        outpoint_index: dict[str,int] = {}
+        adjacency_list: list[list[int]] = []
+        for outpoints_list in components_outpoints:
+            for outpoint in outpoints_list:
+                outpoint_index[outpoint] = vertices_number
+                vertices_number += 1
+                adjacency_list.append([])
+        vertex_node = [None] * vertices_number
+    
+        # ground nodes are always on node 0, setting it below
+        for component_index, component_data in components.iterrows(): 
+            if component_data[''].find ('ground') != -1:
+                for out_index, outpoint in enumerate(
+                        components_outpoints[component_index]
+                    ):
+                    vertex_node[outpoint_index[outpoint]] = 0
 
-        max_node = 1 # starts at 1 once 0 is reserved to ground 
-        current_node = 0
+        # connect near outpoints of same component
+        for component_index, component_data in components.iterrows(): 
+            for out_index, outpoint in enumerate(
+                    components_outpoints[component_index]
+                ):
+                nearest_outpoint = None
+                shortest_angle = inf
+                for other_outpoint in components_outpoints[component_index]:
+                    if outpoint == other_outpoint:
+                        continue
+                    angle = angle_between(
+                        string_to_array(outpoint),
+                        string_to_array(other_outpoint)
+                    )
+                    if angle < shortest_angle:
+                        shortest_angle = angle
+                        nearest_outpoint = other_outpoint
+                if nearest_outpoint is None: 
+                    continue
+                elif shortest_angle < MINIMUM_LINKING_NODE_ANGLE: #connect then
+                    adjacency_list[outpoint_index[outpoint]] = outpoint_index[other_outpoint]
+                    adjacency_list[outpoint_index[other_outpoint]] = outpoint_index[outpoint]
 
-        # YOU ARE WORKING HERE
+        # connecting outpoints along the circuit
         for component_index, component_data in components.iterrows(): # for each component
-            for connection_index, connection_sarray in enumerate(
-                    components_out_points[component_index].keys()
-                ): # and each connection of that component
-                current_node = max_node
+            for out_index, outpoint in enumerate(
+                    components_outpoints[component_index]
+                ): # and each outpoint of that component
+                if vertex_node[outpoint_index[outpoint]] is not None: 
+                    continue
+                conected_vertexs = []
                 for other_component_index, collision_point in \
-                    img_graph.list_connected( # ITERATING BY GENERATOR !
-                        string_to_array(connection_sarray),
+                    img_graph.bfs_bbox_collisions( # ITERATING BY GENERATOR !
+                        string_to_array(outpoint),
                         component_data
-                    ): # so, for each connection connected to the first
-
+                    ): # so, for each outpoint connected to that one
+                    # calculate nearest outpoint to the collision point
                     min_distance = np.Infinity
-                    nearest_point = None
-                    for sarray in components_out_points[other_component_index].keys():
+                    nearest_outpoint = None
+                    for sarray in components_outpoints[other_component_index].keys():
                         array = string_to_array(sarray)
                         distance = np.linalg.norm(collision_point - array)
                         if distance < min_distance:
-                            nearest_point = sarray
-
-                    old_node_value = components_out_points[other_component_index][sarray]
-                    if old_node_value is None:
-                        components_out_points[other_component_index][sarray] = current_node
-                    else:
-                        if old_node_value < current_node:
-                            current_node = old_node_value
-                            # MISSING REPLACEMENT OF ALL OLD VALUES
-                        else:
-                            components_out_points[other_component_index][sarray] = current_node
-
-
-
-                if current_node == max_node:
+                            nearest_outpoint = sarray
+                    if nearest_outpoint == outpoint:
+                        continue       
+                    # connect the outpoint with the nearest point to collision
+                    adjacency_list[outpoint_index[outpoint]] = outpoint_index[nearest_outpoint]
+                    adjacency_list[outpoint_index[nearest_outpoint]] = outpoint_index[outpoint]
+                                    
+        # propagating nodes along connected outpoints
+        max_node = 1
+        for vertex in range(vertices_number):
+            if (vertex_node[vertex] is not None):
+                continue
+            connected, lesser_node = bfs_anchieved_vertices_and_lesser_node(
+                vertex,
+                adjacency_list,
+                vertex_node
+            )
+            for connected_vertex in connected:
+                if lesser_node is None:
+                    lesser_node = max_node
                     max_node += 1
-                
-                        
-                
+                vertex_node[connected_vertex] = lesser_node
 
-        # propagatint nodes ...
-        #for index, data in components.iterrows(): ...
+        #detecting terminals and linking to nodes
+        for component_index, component_data in components.iterrows(): 
+            if component_data['name'] in POLARIZED_COMPONENTS:
+                anode_point, cathode_point = self.polarization_points(component_data)
+                # now search by proximity by a point to stole its node
+                raise NotImplementedError()
+            else:
+                anode, cathode = None, None
+                for string_array in components_outpoints[component_index]:
+                    node = vertex_node[outpoint_index[string_array]]
+                    if anode is None:
+                        anode = node
+                    elif node != anode:
+                        cathode = node 
+                    if (anode and cathode) is not None:
+                        break 
+                if (anode and cathode) is None: # actually, works as "anode or cathode is None"
+                    continue 
+        
+        # and finally you have the necessary to generate the netlist
         raise NotImplementedError()
 
     def nearest_value(self, position:pandas.Series):
         return 0
-        raise NotImplementedError() 
-
-
-def array_to_string(array:np.ndarray) -> str:
-    strings = []
-    for value in array:
-        strings.append(str(value))
-    return 'x'.join(strings)
-
-def string_to_array(sarray:str) -> np.ndarray:
-    list_str = sarray.split('x')
-    mapped = map(lambda s: int(s) , list_str)
-    return np.array (list(mapped))
-
+        raise NotImplementedError()
+    
+    def polarization_points(data):
+        raise NotImplementedError()
