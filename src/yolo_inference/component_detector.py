@@ -1,17 +1,15 @@
-from ast import Continue
-from cmath import inf
 from matplotlib import pyplot as plt
 import matplotlib
 import numpy as np
 import pandas
 import torch
 import cv2
-from math import pi
+from math import pi, inf
 
 from src.image_manipulation.image_graph import ImageGraph
 from src.augmentation.bbox_manipulation import plot_inference_bbox
 from src.image_manipulation.utils import bbox_center, binarize, point_inside_bbox
-from yolo_inference.node_detection_utils import (
+from src.yolo_inference.node_detection_utils import (
         array_to_string,
         bboxes_collisions,
         string_to_array,
@@ -31,6 +29,7 @@ class ComponentDetector():
     size:int = None
     __last_predictions:pandas.DataFrame = None
     __last_image:np.ndarray = None
+    __last_binarized: np.ndarray = None
 
     def __init__(self, size=600, weights='models/best 400ep map.91.pt'):
         self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights, device='cpu')
@@ -40,19 +39,21 @@ class ComponentDetector():
         if type(img) is str:
             img = cv2.imread(img)
 
-        results = self.model(binarize(img), self.size)  
         self.__last_image = img.copy()
+        self.__last_binarized = binarize(img.copy())
+        results = self.model(self.__last_binarized, self.size)  
         self.__last_predictions = results.pandas().xyxy[0]
         return self.__last_predictions
 
     def predict_binarized(self, img):
-        self.__last_image = img.copy()
+        self.__last_binarized = img.copy()
+        self.__last_image = None
         self.__last_predictions = self.model(binarize(img), self.size).pandas().xyxy[0]
         return self.__last_predictions
 
     def plot(self, img=None, boxes=None):
         if img is None:
-            img = self.__last_image
+            img = self.__last_image if self.__last_image is not None else self.__last_binarized
         if boxes is None:
             boxes = self.__last_predictions
 
@@ -63,12 +64,41 @@ class ComponentDetector():
             plt.style.use('ggplot')
             matplotlib.use( 'tkagg' )
         finally:
-            plt.imshow(binarize(self.__last_image))
+            plt.imshow(self.__last_binarized)
             plt.show()
+
+    def inflate(self, image):
+
+        shape = image.shape
+        kernel_size = 5
+
+        for i in [1,2,3]:
+            cut = image[i*shape[0]//3 , 0:shape[1]]
+            found1, between1s = False, False
+            width = 0
+            for j in range (shape[1]):
+                if (cut[j] != 0):
+                    found1 = True
+                if (found1 and cut[j] == 0):
+                    width += 1
+                if (found1 and cut[j] != 0 and width > 0):
+                    if (width <= shape[1]//100):
+                        kernel_size = width
+                        break
+            if kernel_size != 5:
+                break         
+        
+        new_image = cv2.morphologyEx(
+            image, 
+            cv2.MORPH_CLOSE, 
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size*3,)*2)
+        )
+
+        return new_image
 
     def generate_netlist(self):
         components = self.__last_predictions.copy() # components list
-        image = self.__last_image.copy() 
+        image = self.inflate(self.__last_binarized.copy())
         img_graph = ImageGraph(binarized_image=image)
 
         components_outpoints = [[] for _,_ in components.iterrows()] 
@@ -78,13 +108,19 @@ class ComponentDetector():
             components_outpoints # filled by reference
         )
 
+        debug_img = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
+        for component in components_outpoints:
+            for outpoint in component:
+                print (outpoint)  
+                cv2.circle (debug_img, tuple(string_to_array(outpoint)), 8, (0,200,0), 8)
+
         components['value'] = 0
         for index, data in components.iterrows(): # discovering and saving values
             components.at[index, 'value'] = self.nearest_value (data[POS_ATTR])
 
-        collisions = bboxes_collisions (components)
-        for collision in collisions:
-            components = filter_collision(components, collision)
+        #collisions = bboxes_collisions (components)
+        #for collision in collisions:
+        #    components = filter_collision(components, collision)
 
         # constructing outpoints graph
         vertices_number = 0
@@ -116,8 +152,8 @@ class ComponentDetector():
                     if outpoint == other_outpoint:
                         continue
                     angle = angle_between(
-                        string_to_array(outpoint),
-                        string_to_array(other_outpoint)
+                        string_to_array(outpoint) - bboxes_centers[component_index],
+                        string_to_array(other_outpoint) - bboxes_centers[component_index]
                     )
                     if angle < shortest_angle:
                         shortest_angle = angle
