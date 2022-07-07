@@ -1,12 +1,11 @@
 from argparse import ArgumentError
 from asyncio.proactor_events import _ProactorBaseWritePipeTransport
-from queue import Queue
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import cv2
 
-from src.image_manipulation.utils import binarize
+from src.image_manipulation.utils import binarize, point_inside_bbox
 
 class ImageGraph:
     '''
@@ -49,7 +48,7 @@ class ImageGraph:
                     sum += np.array(point[0])
                     points += 1
                 center = ( sum * (1/points) ).astype(int)
-                outpoints_centers.append(center)
+                outpoints_centers.append(center[::-1])
         
         return outpoints_centers
 
@@ -59,26 +58,41 @@ class ImageGraph:
         "bboxes_dataframe" data, and also returns the point of collision between the search and the bbox
         '''
         visited = self.binarized_image * 0
-
         is_visited = lambda ndarray: visited[ndarray[0], ndarray[1]]
         def mark_visited(ndarray): visited[ndarray[0], ndarray[1]] = 1
 
-        queue = Queue()
-        queue.put (start_point)
-        mark_visited(start_point)
-        while (queue.not_empty):
-            searched_vertex = queue.get()
+        queue = []
+        try:
+            queue.append (start_point)
+            mark_visited(start_point)
+        except IndexError:
+            print ('WARNING: start point out of image')
+            return
 
-            # check if seached_vertex is inside some bbox,
-            # if so, does not allow its neighbors to be visited
-            # and add it to a list, as its a interest point
+        once_out_bbox = False
+        while (len(queue) > 0):
+            current_point = queue.pop(0)
 
-            for neighbor in self.neighbors_of(searched_vertex):
-                if (not is_visited(neighbor)):
-                    mark_visited(neighbor)
-                    queue.put(neighbor)
+            inside_bbox = False
+            for comp_index, component_bbox in bboxes_dataframe.iterrows():
+                if (point_inside_bbox(current_point, component_bbox)): 
+                    inside_bbox = True
+                    mark_visited(current_point)
+                    yield (comp_index, current_point)
+                    break
 
-        raise NotImplementedError()
+            if (not once_out_bbox) and (not inside_bbox):
+                once_out_bbox = True
+                visited = visited * 0
+                mark_visited(current_point)
+                queue = [current_point]
+
+            if not (inside_bbox and once_out_bbox): 
+                neighbors = self.neighbors_of(current_point)
+                for neighbor in neighbors:
+                    if (not is_visited(neighbor)):
+                        mark_visited(neighbor)
+                        queue.append(neighbor)
 
     def neighbors_of(self, point:np.ndarray) -> list[np.ndarray]:
         neighbors = []
@@ -89,9 +103,12 @@ class ImageGraph:
             point - np.array([0,1]),
         ]
         for candidate in candidates:
-            try:
+            valid_index = (candidate[0] >= 0) \
+                and (candidate[1] >= 0) \
+                and (candidate[0] < self.binarized_image.shape[0]) \
+                and (candidate[1] < self.binarized_image.shape[1])
+            if (valid_index):
                 color = self.binarized_image[candidate[0], candidate[1]]
-            except IndexError: pass
-            if color != 0:
-                neighbors.append (candidate)
+                if color != 0:
+                    neighbors.append (candidate)
         return neighbors

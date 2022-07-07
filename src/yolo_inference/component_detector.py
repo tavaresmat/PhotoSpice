@@ -8,7 +8,7 @@ from math import pi, inf
 
 from src.image_manipulation.image_graph import ImageGraph
 from src.augmentation.bbox_manipulation import plot_inference_bbox
-from src.image_manipulation.utils import bbox_center, binarize, point_inside_bbox
+from src.image_manipulation.utils import bbox_center, binarize, inflate, point_inside_bbox
 from src.yolo_inference.node_detection_utils import (
         array_to_string,
         bboxes_collisions,
@@ -20,7 +20,10 @@ from src.yolo_inference.node_detection_utils import (
 )
 
 MINIMUM_LINKING_NODE_ANGLE = 100 *(pi/180)
-POLARIZED_COMPONENTS = ['diode', 'voltage', 'signal']
+POLARIZED_COMPONENTS = ['diode', 
+'voltage', 
+#'signal'
+]
 POS_ATTR = ['xmin', 'xmax', 'ymin', 'ymax']
 
 class ComponentDetector():
@@ -67,38 +70,9 @@ class ComponentDetector():
             plt.imshow(self.__last_binarized)
             plt.show()
 
-    def inflate(self, image):
-
-        shape = image.shape
-        kernel_size = 5
-
-        for i in [1,2,3]:
-            cut = image[i*shape[0]//3 , 0:shape[1]]
-            found1, between1s = False, False
-            width = 0
-            for j in range (shape[1]):
-                if (cut[j] != 0):
-                    found1 = True
-                if (found1 and cut[j] == 0):
-                    width += 1
-                if (found1 and cut[j] != 0 and width > 0):
-                    if (width <= shape[1]//100):
-                        kernel_size = width
-                        break
-            if kernel_size != 5:
-                break         
-        
-        new_image = cv2.morphologyEx(
-            image, 
-            cv2.MORPH_CLOSE, 
-            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size*3,)*2)
-        )
-
-        return new_image
-
     def generate_netlist(self):
         components = self.__last_predictions.copy() # components list
-        image = self.inflate(self.__last_binarized.copy())
+        image = inflate(self.__last_binarized.copy())
         img_graph = ImageGraph(binarized_image=image)
 
         components_outpoints = [[] for _,_ in components.iterrows()] 
@@ -111,8 +85,7 @@ class ComponentDetector():
         debug_img = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
         for component in components_outpoints:
             for outpoint in component:
-                print (outpoint)  
-                cv2.circle (debug_img, tuple(string_to_array(outpoint)), 8, (0,200,0), 8)
+                cv2.circle (debug_img, tuple(string_to_array(outpoint))[::-1], 8, (0,200,0), 8)
 
         components['value'] = 0
         for index, data in components.iterrows(): # discovering and saving values
@@ -125,17 +98,19 @@ class ComponentDetector():
         # constructing outpoints graph
         vertices_number = 0
         outpoint_index: dict[str,int] = {}
-        adjacency_list: list[list[int]] = []
+        adjacency_list: list[set[int]] = []
         for outpoints_list in components_outpoints:
             for outpoint in outpoints_list:
                 outpoint_index[outpoint] = vertices_number
                 vertices_number += 1
-                adjacency_list.append([])
+                adjacency_list.append(set())
         vertex_node = [None] * vertices_number
     
         # ground nodes are always on node 0, setting it below
+        grounds_index = []
         for component_index, component_data in components.iterrows(): 
-            if component_data[''].find ('ground') != -1:
+            if component_data['name'].find ('ground') != -1:
+                grounds_index.append(component_index)
                 for out_index, outpoint in enumerate(
                         components_outpoints[component_index]
                     ):
@@ -160,9 +135,11 @@ class ComponentDetector():
                         nearest_outpoint = other_outpoint
                 if nearest_outpoint is None: 
                     continue
-                elif shortest_angle < MINIMUM_LINKING_NODE_ANGLE: #connect then
-                    adjacency_list[outpoint_index[outpoint]] = outpoint_index[other_outpoint]
-                    adjacency_list[outpoint_index[other_outpoint]] = outpoint_index[outpoint]
+                elif shortest_angle < MINIMUM_LINKING_NODE_ANGLE \
+                and not (outpoint_index[outpoint] == outpoint_index[other_outpoint]):
+                    #print (f'connecting a {outpoint_index[outpoint]} to {outpoint_index[other_outpoint]}')
+                    adjacency_list[outpoint_index[outpoint]].add(outpoint_index[other_outpoint])
+                    adjacency_list[outpoint_index[other_outpoint]].add(outpoint_index[outpoint])
 
         # connecting outpoints along the circuit
         for component_index, component_data in components.iterrows(): # for each component
@@ -171,31 +148,43 @@ class ComponentDetector():
                 ): # and each outpoint of that component
                 if vertex_node[outpoint_index[outpoint]] is not None: 
                     continue
-                conected_vertexs = []
+
                 for other_component_index, collision_point in \
                     img_graph.bfs_bbox_collisions( # ITERATING BY GENERATOR !
                         string_to_array(outpoint),
-                        component_data
+                        components
                     ): # so, for each outpoint connected to that one
                     # calculate nearest outpoint to the collision point
+                    
                     min_distance = np.Infinity
                     nearest_outpoint = None
-                    for sarray in components_outpoints[other_component_index].keys():
+                    for sarray in components_outpoints[other_component_index]:
                         array = string_to_array(sarray)
                         distance = np.linalg.norm(collision_point - array)
                         if distance < min_distance:
                             nearest_outpoint = sarray
+                            min_distance = distance
+                    print (f'nearest_outpoint: {nearest_outpoint} (from {collision_point})')
                     if nearest_outpoint == outpoint:
                         continue       
-                    # connect the outpoint with the nearest point to collision
-                    adjacency_list[outpoint_index[outpoint]] = outpoint_index[nearest_outpoint]
-                    adjacency_list[outpoint_index[nearest_outpoint]] = outpoint_index[outpoint]
-                                    
+                    else: # connect the outpoint with the nearest point to collision
+                        adjacency_list[outpoint_index[outpoint]].add(outpoint_index[nearest_outpoint])
+                        adjacency_list[outpoint_index[nearest_outpoint]].add(outpoint_index[outpoint])
+
+        print (outpoint_index)
+        print (adjacency_list)
+        plt.imshow (debug_img)
+        plt.show()
+
+         # removing grounds
+        for i in grounds_index:
+            components.drop(i, inplace=True)
+
         # propagating nodes along connected outpoints
         max_node = 1
         for vertex in range(vertices_number):
-            if (vertex_node[vertex] is not None):
-                continue
+            #if (vertex_node[vertex] is not None):
+            #    continue
             connected, lesser_node = bfs_anchieved_vertices_and_lesser_node(
                 vertex,
                 adjacency_list,
@@ -207,7 +196,11 @@ class ComponentDetector():
                     max_node += 1
                 vertex_node[connected_vertex] = lesser_node
 
+        print (outpoint_index)
+        print (adjacency_list)
+
         #detecting terminals and linking to nodes
+        components['anode'] = components['cathode'] = None
         for component_index, component_data in components.iterrows(): 
             if component_data['name'] in POLARIZED_COMPONENTS:
                 anode_point, cathode_point = self.polarization_points(component_data)
@@ -225,13 +218,33 @@ class ComponentDetector():
                         break 
                 if (anode and cathode) is None: # actually, works as "anode or cathode is None"
                     continue 
+            print (f'a: {anode}, b: {cathode}')
+            components.at[component_index, 'anode'] = anode
+            components.at[component_index, 'cathode'] = cathode
         
+        print ()
+        print (vertex_node)
+
         # and finally you have the necessary to generate the netlist
+        components_counts = {}
+        netlist = ''
+        for comp_index, comp_data in components.iterrows(): 
+            letter = comp_data['name'][0]
+            try:
+                components_counts[letter] += 1
+            except KeyError:
+                components_counts[letter] = 1
+            comp_data['schematic name'] = f'{letter}{components_counts[letter]}'
+            netlist += f"{comp_data['schematic name']} " \
+            + f"{comp_data['anode']} {comp_data['cathode']} {comp_data['value']}\n"
+
+        return netlist
+
         raise NotImplementedError()
 
     def nearest_value(self, position:pandas.Series):
         return 0
         raise NotImplementedError()
     
-    def polarization_points(data):
+    def polarization_points(self, data):
         raise NotImplementedError()

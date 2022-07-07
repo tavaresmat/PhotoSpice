@@ -49,4 +49,41 @@ def bfs_anchieved_vertices_and_lesser_node(
                 adjacency_list,
                 vertex_node
             ):
-    raise NotImplementedError()
+
+    visited = np.array([False]*len(adjacency_list), dtype=bool)
+    is_visited = lambda vertex: visited[vertex]
+    def mark_visited(vertex): visited[vertex] = True
+    queue = []
+    queue.append (vertex)
+    mark_visited(vertex)
+    lesser_node = None
+
+    while (len(queue) > 0):
+        
+        current_point = queue.pop(0)
+        current_node = vertex_node[current_point]
+
+        has_node = current_node is not None
+        first_valid_node = (lesser_node is None) and has_node
+
+        if first_valid_node:
+            lesser_node = current_node
+        elif has_node and (lesser_node >current_node ):
+            lesser_node = current_node
+
+        neighbors = adjacency_list[current_point]
+        for neighbor in neighbors:
+            if (not is_visited(neighbor)):
+                mark_visited(neighbor)
+                queue.append(neighbor)
+    
+    conex_graph_component = []
+    for index,boolean in enumerate(visited):
+        if boolean:
+            conex_graph_component.append (index)
+
+
+    return (
+        conex_graph_component,
+        lesser_node
+    )

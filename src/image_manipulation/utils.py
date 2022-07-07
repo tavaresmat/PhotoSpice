@@ -30,16 +30,54 @@ def binarize (image:np.array, kernel_dimension:tuple=None) -> np.array:
     closed_threshold = cv2.morphologyEx (threshold_image, cv2.MORPH_CLOSE, kernel, iterations=1)
     return closed_threshold
 
+def inflate(image):
+    assert (len(image.shape) == 2)
+    shape = image.shape
+    kernel_size = 5
+    DILATIONS = 1
+    CLOSINGS = 2
+
+    for i in [1,2,3]:
+        cut = image[i*shape[0]//3 - (1 if i != 0 else 0) , 0:shape[1]]
+        found1 = False, False
+        width = 0
+        for j in range (shape[1]):
+            if (cut[j] != 0):
+                found1 = True
+            if (found1 and cut[j] == 0):
+                width += 1
+            if (found1 and cut[j] != 0 and width > 0):
+                if (width <= shape[1]//100):
+                    kernel_size = width
+                    break
+        if kernel_size != 5:
+            break   
+
+    for i in range(DILATIONS):
+        image = cv2.dilate (
+            image,
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size*1.3),)*2)
+        )
+
+    for i in range(CLOSINGS):
+        image = cv2.morphologyEx(
+            image, 
+            cv2.MORPH_CLOSE, 
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size*1.2),)*2),
+        )
+
+    return image
+
 def open_rgb_image (path):
     cv2_img = cv2.imread(path)
     return cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
 
 def point_inside_bbox (point:np.ndarray, bbox:pd.Series):
-        return (point[0] > bbox['xmin']) and (point[0] < bbox['xmax']) \
-        and (point[1] > bbox['ymin']) and (point[1] < bbox['ymax'])
+        return (point[1] > int(bbox['xmin'])) and (point[1] < int(bbox['xmax'])) \
+        and (point[0] > int(bbox['ymin'])) and (point[0] < int(bbox['ymax']))
 
 def bbox_center (bbox: pd.Series):
     return .5 * np.array([
-        bbox['xmin'] + bbox['xmax'],
-        bbox['ymin'] + bbox['ymax']
+        bbox['ymin'] + bbox['ymax'],
+        bbox['xmin'] + bbox['xmax']
     ])
