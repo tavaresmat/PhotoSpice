@@ -61,14 +61,14 @@ def inflate(image, analyzed=None):
     for i in range(DILATIONS):
         image = cv2.dilate (
             image,
-            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size*0.5),)*2)
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size*.7),)*2)
         )
 
     for i in range(CLOSINGS):
         image = cv2.morphologyEx(
             image, 
             cv2.MORPH_CLOSE, 
-            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size*1.2),)*2),
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size*1.3),)*2),
         )
 
     return image

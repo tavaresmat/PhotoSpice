@@ -19,7 +19,7 @@ from src.yolo_inference.node_detection_utils import (
         bfs_anchieved_vertices_and_lesser_node
 )
 
-MINIMUM_LINKING_NODE_ANGLE = 100 *(pi/180)
+MINIMUM_LINKING_NODE_ANGLE = 80
 POLARIZED_COMPONENTS = ['diode', 
 'voltage', 
 #'signal'
@@ -141,25 +141,29 @@ class ComponentDetector():
             for out_index, outpoint in enumerate(
                     components_outpoints[component_index]
                 ):
+
                 nearest_outpoint = None
                 shortest_angle = inf
                 for other_outpoint in components_outpoints[component_index]:
                     if outpoint == other_outpoint:
                         continue
+                    p1 = string_to_array(outpoint)
+                    p2 = string_to_array(other_outpoint)
+                    center = bboxes_centers[component_index].astype(int)
                     angle = angle_between(
-                        string_to_array(outpoint) - bboxes_centers[component_index],
-                        string_to_array(other_outpoint) - bboxes_centers[component_index]
+                        p1 - center,
+                        p2 - center
                     )
+
                     if angle < shortest_angle:
                         shortest_angle = angle
                         nearest_outpoint = other_outpoint
                 if nearest_outpoint is None: 
                     continue
-                elif shortest_angle < MINIMUM_LINKING_NODE_ANGLE \
-                and not (outpoint_index[outpoint] == outpoint_index[other_outpoint]):
-                    #print (f'connecting a {outpoint_index[outpoint]} to {outpoint_index[other_outpoint]}')
-                    adjacency_list[outpoint_index[outpoint]].add(outpoint_index[other_outpoint])
-                    adjacency_list[outpoint_index[other_outpoint]].add(outpoint_index[outpoint])
+
+                elif shortest_angle < MINIMUM_LINKING_NODE_ANGLE :
+                    adjacency_list[outpoint_index[outpoint]].add(outpoint_index[nearest_outpoint])
+                    adjacency_list[outpoint_index[nearest_outpoint]].add(outpoint_index[outpoint])
 
         # connecting outpoints along the circuit
         for component_index, component_data in components.iterrows(): # for each component
@@ -191,6 +195,7 @@ class ComponentDetector():
                         adjacency_list[outpoint_index[nearest_outpoint]].add(outpoint_index[outpoint])
 
         index_to_point = {index: point for point, index in outpoint_index.items()}
+
         for vertex, neighbors in enumerate(adjacency_list):
             for neighbor in neighbors:
                 cv2.line (
@@ -200,11 +205,10 @@ class ComponentDetector():
                     (100,0,0),
                     10
                 )
-
         print (outpoint_index)
         print (adjacency_list)
-        plt.imshow (debug_img)
-        plt.show()
+        #plt.imshow (debug_img)
+        #plt.show()
 
          # removing grounds
         for i in grounds_index:
