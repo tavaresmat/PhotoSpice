@@ -26,6 +26,15 @@ POLARIZED_COMPONENTS = ['diode',
 ]
 POS_ATTR = ['xmin', 'xmax', 'ymin', 'ymax']
 
+COMPONENT_LETTER = {
+    'diode': 'D',
+    'resistor': 'R',
+    'inductor': 'L',
+    'capacitor': 'C',
+    'voltage': 'V',
+    'signal': 'Vsin'
+}
+
 class ComponentDetector():
     
     model:any = None
@@ -72,7 +81,8 @@ class ComponentDetector():
 
     def generate_netlist(self):
         components = self.__last_predictions.copy() # components list
-        image = inflate(self.__last_binarized.copy())
+        image = self.__last_binarized.copy()
+        image = inflate(image)
         img_graph = ImageGraph(binarized_image=image)
 
         components_outpoints = [[] for _,_ in components.iterrows()] 
@@ -86,6 +96,16 @@ class ComponentDetector():
         for component in components_outpoints:
             for outpoint in component:
                 cv2.circle (debug_img, tuple(string_to_array(outpoint))[::-1], 8, (0,200,0), 8)
+
+        image = self.__last_binarized.copy()
+        for _, bbox_data in components.iterrows(): #erasing bboxes
+            xmin, xmax, ymin, ymax = bbox_data[
+                ['xmin', 'xmax', 'ymin', 'ymax']
+            ].astype(int)
+            p1, p2 = np.array([xmin+1, ymin+1]), np.array([xmax-1, ymax-1])
+            cv2.rectangle (image, p1.astype(int), p2.astype(int), 0, -1)
+        image = inflate(image, analyzed=self.__last_binarized)
+        img_graph = ImageGraph(binarized_image=image)
 
         components['value'] = 0
         for index, data in components.iterrows(): # discovering and saving values
@@ -164,12 +184,22 @@ class ComponentDetector():
                         if distance < min_distance:
                             nearest_outpoint = sarray
                             min_distance = distance
-                    print (f'nearest_outpoint: {nearest_outpoint} (from {collision_point})')
                     if nearest_outpoint == outpoint:
                         continue       
                     else: # connect the outpoint with the nearest point to collision
                         adjacency_list[outpoint_index[outpoint]].add(outpoint_index[nearest_outpoint])
                         adjacency_list[outpoint_index[nearest_outpoint]].add(outpoint_index[outpoint])
+
+        index_to_point = {index: point for point, index in outpoint_index.items()}
+        for vertex, neighbors in enumerate(adjacency_list):
+            for neighbor in neighbors:
+                cv2.line (
+                    debug_img,
+                    string_to_array(index_to_point[vertex])[::-1],
+                    string_to_array(index_to_point[neighbor])[::-1],
+                    (100,0,0),
+                    10
+                )
 
         print (outpoint_index)
         print (adjacency_list)
@@ -196,40 +226,37 @@ class ComponentDetector():
                     max_node += 1
                 vertex_node[connected_vertex] = lesser_node
 
-        print (outpoint_index)
-        print (adjacency_list)
-
         #detecting terminals and linking to nodes
         components['anode'] = components['cathode'] = None
         for component_index, component_data in components.iterrows(): 
             if component_data['name'] in POLARIZED_COMPONENTS:
-                anode_point, cathode_point = self.polarization_points(component_data)
+                #anode_point, cathode_point = self.polarization_points(component_data)
                 # now search by proximity by a point to stole its node
-                raise NotImplementedError()
-            else:
-                anode, cathode = None, None
-                for string_array in components_outpoints[component_index]:
-                    node = vertex_node[outpoint_index[string_array]]
-                    if anode is None:
-                        anode = node
-                    elif node != anode:
-                        cathode = node 
-                    if (anode and cathode) is not None:
-                        break 
-                if (anode and cathode) is None: # actually, works as "anode or cathode is None"
-                    continue 
-            print (f'a: {anode}, b: {cathode}')
+                print ('WARNING: polarized component detected, but no terminals distinguishability')
+            #else:
+            anode, cathode = None, None
+            for string_array in components_outpoints[component_index]:
+                node = vertex_node[outpoint_index[string_array]]
+                if anode is None:
+                    anode = node
+                elif node != anode:
+                    cathode = node 
+                if (anode and cathode) is not None:
+                    break 
+            if (anode and cathode) is None: # actually, works as "anode or cathode is None"
+                continue 
+            #end else
+
             components.at[component_index, 'anode'] = anode
             components.at[component_index, 'cathode'] = cathode
         
-        print ()
         print (vertex_node)
 
         # and finally you have the necessary to generate the netlist
         components_counts = {}
         netlist = ''
         for comp_index, comp_data in components.iterrows(): 
-            letter = comp_data['name'][0]
+            letter = COMPONENT_LETTER[comp_data['name']]
             try:
                 components_counts[letter] += 1
             except KeyError:
@@ -239,8 +266,6 @@ class ComponentDetector():
             + f"{comp_data['anode']} {comp_data['cathode']} {comp_data['value']}\n"
 
         return netlist
-
-        raise NotImplementedError()
 
     def nearest_value(self, position:pandas.Series):
         return 0
