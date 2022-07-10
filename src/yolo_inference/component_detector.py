@@ -19,7 +19,7 @@ from src.yolo_inference.node_detection_utils import (
         bfs_anchieved_vertices_and_lesser_node
 )
 
-MAX_PIXELS = 100_000
+MAX_PIXELS = 300_000
 MINIMUM_LINKING_NODE_ANGLE = 80
 POLARIZED_COMPONENTS = ['diode', 
 'voltage', 

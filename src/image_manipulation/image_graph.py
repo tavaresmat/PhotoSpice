@@ -1,5 +1,6 @@
 from argparse import ArgumentError
 from asyncio.proactor_events import _ProactorBaseWritePipeTransport
+from math import ceil
 from matplotlib import pyplot as plt
 import matplotlib
 import numpy as np
@@ -114,11 +115,13 @@ class ImageGraph:
 
     def neighbors_of(self, point:np.ndarray) -> list[np.ndarray]:
         neighbors = []
+        y, x = self.binarized_image.shape
+        stepx, stepy = ceil(x/200), ceil(y/200) 
         candidates = [
-            point + np.array([1,0]),
-            point - np.array([1,0]),
-            point + np.array([0,1]),
-            point - np.array([0,1]),
+            point + np.array([stepy,0]),
+            point - np.array([stepy,0]),
+            point + np.array([0,stepx]),
+            point - np.array([0,stepx]),
         ]
         for candidate in candidates:
             valid_index = (candidate[0] >= 0) \
