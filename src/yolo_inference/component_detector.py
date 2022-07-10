@@ -7,7 +7,7 @@ import cv2
 from math import pi, inf
 
 from src.image_manipulation.image_graph import ImageGraph
-from src.augmentation.bbox_manipulation import plot_inference_bbox
+from src.augmentation.bbox_manipulation import draw_inference_bbox, plot_inference_bbox
 from src.image_manipulation.utils import bbox_center, binarize, inflate, point_inside_bbox
 from src.yolo_inference.node_detection_utils import (
         array_to_string,
@@ -19,13 +19,13 @@ from src.yolo_inference.node_detection_utils import (
         bfs_anchieved_vertices_and_lesser_node
 )
 
+MAX_PIXELS = 100_000
 MINIMUM_LINKING_NODE_ANGLE = 80
 POLARIZED_COMPONENTS = ['diode', 
 'voltage', 
 #'signal'
 ]
 POS_ATTR = ['xmin', 'xmax', 'ymin', 'ymax']
-
 COMPONENT_LETTER = {
     'diode': 'D',
     'resistor': 'R',
@@ -44,6 +44,7 @@ class ComponentDetector():
     __last_binarized: np.ndarray = None
 
     def __init__(self, size=600, weights='models/best 400ep map.91.pt'):
+        
         self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights, device='cpu')
         self.size = size
 
@@ -51,10 +52,16 @@ class ComponentDetector():
         if type(img) is str:
             img = cv2.imread(img)
 
+        y, x = img.shape[:2]
+        scale = (MAX_PIXELS/(x*y))**0.5
+        if MAX_PIXELS < (x*y):
+            img = cv2.resize(img, np.array([x*scale, y*scale]).astype(int) )
+
         self.__last_image = img.copy()
         self.__last_binarized = binarize(img.copy())
         results = self.model(self.__last_binarized, self.size)  
         self.__last_predictions = results.pandas().xyxy[0]
+
         return self.__last_predictions
 
     def predict_binarized(self, img):
@@ -95,7 +102,8 @@ class ComponentDetector():
         debug_img = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
         for component in components_outpoints:
             for outpoint in component:
-                cv2.circle (debug_img, tuple(string_to_array(outpoint))[::-1], 8, (0,200,0), 8)
+                cv2.circle (debug_img, tuple(string_to_array(outpoint))[::-1],
+                 debug_img.shape[0]//100, (0,200,0), 8)
 
         image = self.__last_binarized.copy()
         for _, bbox_data in components.iterrows(): #erasing bboxes
@@ -103,7 +111,9 @@ class ComponentDetector():
                 ['xmin', 'xmax', 'ymin', 'ymax']
             ].astype(int)
             p1, p2 = np.array([xmin+1, ymin+1]), np.array([xmax-1, ymax-1])
-            cv2.rectangle (image, p1.astype(int), p2.astype(int), 0, -1)
+            new_p1 = .9*p1 + .1*p2
+            new_p2 = .9*p2 + .1*p1
+            cv2.rectangle (image, new_p1.astype(int), new_p2.astype(int), 0, -1)
         image = inflate(image, analyzed=self.__last_binarized)
         img_graph = ImageGraph(binarized_image=image)
 
@@ -179,7 +189,7 @@ class ComponentDetector():
                         components
                     ): # so, for each outpoint connected to that one
                     # calculate nearest outpoint to the collision point
-                    
+                    print (f'{component_index}-{out_index}-{other_component_index}')
                     min_distance = np.Infinity
                     nearest_outpoint = None
                     for sarray in components_outpoints[other_component_index]:
@@ -191,6 +201,7 @@ class ComponentDetector():
                     if nearest_outpoint == outpoint:
                         continue       
                     else: # connect the outpoint with the nearest point to collision
+                        #print (f'{outpoint} <-> {nearest_outpoint}')
                         adjacency_list[outpoint_index[outpoint]].add(outpoint_index[nearest_outpoint])
                         adjacency_list[outpoint_index[nearest_outpoint]].add(outpoint_index[outpoint])
 
@@ -202,13 +213,14 @@ class ComponentDetector():
                     debug_img,
                     string_to_array(index_to_point[vertex])[::-1],
                     string_to_array(index_to_point[neighbor])[::-1],
-                    (100,0,0),
-                    10
+                    (255,0,0),
+                    debug_img.shape[0]//100
                 )
         print (outpoint_index)
         print (adjacency_list)
-        #plt.imshow (debug_img)
-        #plt.show()
+        draw_inference_bbox(debug_img, components)
+        plt.imshow (debug_img)
+        plt.show()
 
          # removing grounds
         for i in grounds_index:
@@ -247,14 +259,18 @@ class ComponentDetector():
                     cathode = node 
                 if (anode and cathode) is not None:
                     break 
-            if (anode and cathode) is None: # actually, works as "anode or cathode is None"
-                continue 
-            #end else
+            if anode is None: #not connected to anything
+                continue
+            elif cathode is None: # TERMINAL UNCONNECTED
+                if len(components_outpoints[component_index]) < 2:
+                    continue
+                else: # COMPONENT IN SHORT-CIRCUIT, DONT FORGET TO DECIDE WHAT TO DO
+                    cathode = anode
 
             components.at[component_index, 'anode'] = anode
             components.at[component_index, 'cathode'] = cathode
         
-        print (vertex_node)
+        #print (vertex_node)
 
         # and finally you have the necessary to generate the netlist
         components_counts = {}
@@ -265,9 +281,16 @@ class ComponentDetector():
                 components_counts[letter] += 1
             except KeyError:
                 components_counts[letter] = 1
+
             comp_data['schematic name'] = f'{letter}{components_counts[letter]}'
-            netlist += f"{comp_data['schematic name']} " \
-            + f"{comp_data['anode']} {comp_data['cathode']} {comp_data['value']}\n"
+            name = comp_data['schematic name']
+            anode = comp_data['anode']
+            cathode = comp_data['cathode']
+            value = comp_data['value']
+            if (comp_data['anode'] is None) or (comp_data['cathode'] is None):
+                continue
+
+            netlist += f"{name} {anode} {cathode} {value}\n"
 
         return netlist
 

@@ -1,6 +1,7 @@
 from argparse import ArgumentError
 from asyncio.proactor_events import _ProactorBaseWritePipeTransport
 from matplotlib import pyplot as plt
+import matplotlib
 import numpy as np
 import pandas as pd
 import cv2
@@ -13,14 +14,24 @@ class ImageGraph:
     which have the same color are linked by an edge.
     '''
     binarized_image = None
+    global_visited_vertices = None
     def __init__(self, image:np.ndarray=None, binarized_image:np.ndarray=None): 
-        if (image is None) and (binarized_image is None):
-            raise ArgumentError(
-                'you must provide either "image" or "binarized_image" argument'
+
+        try:
+            plt.style.use('ggplot')
+            matplotlib.use( 'tkagg' )
+        finally:
+            if (image is None) and (binarized_image is None):
+                raise ArgumentError(
+                    'you must provide either "image" or "binarized_image" argument'
             )
+        
+
         if binarized_image is None:
             binarized_image = binarize(image) 
         self.binarized_image = binarized_image
+        self.global_visited_vertices = binarized_image * 0 
+            
             
     def outpoints(self, bbox_data:pd.Series) -> list[np.ndarray]:
         '''
@@ -31,6 +42,11 @@ class ImageGraph:
         borders = {}
         for key in ['top_border', 'bottom_border', 'left_border', 'right_border']:
             borders[key] = self.binarized_image * 0
+
+        ymax -= 1 if ymax >= self.binarized_image.shape[0] else 0
+        xmax -= 1 if xmax >= self.binarized_image.shape[1] else 0
+        ymin += 1 if ymin < 0 else 0
+        xmin += 1 if ymin < 0 else 0
 
         borders['top_border'][ymin,xmin:xmax] = self.binarized_image[ymin,xmin:xmax]
         borders['bottom_border'][ymax,xmin:xmax] = self.binarized_image[ymax,xmin:xmax]
@@ -83,7 +99,7 @@ class ImageGraph:
 
             if (not once_out_bbox) and (not inside_bbox):
                 once_out_bbox = True
-                visited = visited * 0
+                visited = self.global_visited_vertices
                 mark_visited(current_point)
                 queue = [current_point]
 
@@ -93,6 +109,8 @@ class ImageGraph:
                     if (not is_visited(neighbor)):
                         mark_visited(neighbor)
                         queue.append(neighbor)
+        '''plt.imshow (visited * 100 + self.binarized_image)
+        plt.show()'''
 
     def neighbors_of(self, point:np.ndarray) -> list[np.ndarray]:
         neighbors = []

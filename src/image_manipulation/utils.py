@@ -1,4 +1,5 @@
 from ctypes.wintypes import PDWORD
+import matplotlib
 import pandas as pd
 
 import cv2
@@ -40,36 +41,55 @@ def inflate(image, analyzed=None):
     kernel_size = 5
     calculated_widths = []
     DILATIONS = 1
-    CLOSINGS = 2
+    CLOSINGS = 1
 
+    plt.style.use('ggplot')
+    matplotlib.use( 'tkagg' )
+    ''' print (f'imagem')
+    plt.imshow(image)
+    plt.show()
+    '''
     for i in range(15):
-        cut = analyzed[i*shape[0]//15 - (1 if i != 0 else 0) , 0:shape[1]]
-        found1 = False, False
+        cut = analyzed[i*shape[0]//15 - (1 if i != 0 else -1) , 0:shape[1]]
+        found_edge, found_valley = False, False
         width = 0
+        
         for j in range (shape[1]):
             if (cut[j] != 0):
-                found1 = True
-            if (found1 and cut[j] == 0):
+                found_edge = True
+            if (found_edge and cut[j] == 0):
                 width += 1
-            if (found1 and cut[j] != 0 and width > 0):
+                found_valley = True
+            if (found_valley and cut[j] != 0):
                 if (width <= shape[1]//20):
                     calculated_widths.append(width)
-                    break
+                    width = 0
+                    found_valley = False
 
+    #print (f'widths: {calculated_widths}')
     kernel_size = np.median(calculated_widths) if calculated_widths else kernel_size
 
     for i in range(DILATIONS):
+        size = max (round(kernel_size*0.5), 2)
         image = cv2.dilate (
             image,
-            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size*.7),)*2)
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size,)*2)
         )
+
+    '''print (f'imagem dilated')
+    plt.imshow(image)
+    plt.show()'''
 
     for i in range(CLOSINGS):
         image = cv2.morphologyEx(
             image, 
             cv2.MORPH_CLOSE, 
-            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size*1.3),)*2),
+            cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size),)*2),
         )
+
+    '''print (f'imagem closed')
+    plt.imshow(image)
+    plt.show()'''
 
     return image
 
