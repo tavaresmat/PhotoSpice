@@ -16,7 +16,13 @@ class ImageGraph:
     '''
     binarized_image = None
     global_visited_vertices = None
-    def __init__(self, image:np.ndarray=None, binarized_image:np.ndarray=None): 
+    grid = None
+    def __init__(self, image:np.ndarray=None, binarized_image:np.ndarray=None, grid=None): 
+
+        if grid is not None:
+            self.grid = int(grid) 
+            if self.grid < 1: 
+                self.grid = 1
 
         try:
             plt.style.use('ggplot')
@@ -26,7 +32,6 @@ class ImageGraph:
                 raise ArgumentError(
                     'you must provide either "image" or "binarized_image" argument'
             )
-        
 
         if binarized_image is None:
             binarized_image = binarize(image) 
@@ -115,14 +120,25 @@ class ImageGraph:
 
     def neighbors_of(self, point:np.ndarray) -> list[np.ndarray]:
         neighbors = []
-        y, x = self.binarized_image.shape
-        stepx, stepy = ceil(x/200), ceil(y/200) 
+
+        '''if self.grid is None:
+            y, x = self.binarized_image.shape
+            stepx, stepy = ceil(x/600), ceil(y/600) 
+        else: 
+            stepx = stepy = self.grid'''
+        stepx, stepy = 1, 1 # for security
+
         candidates = [
-            point + np.array([stepy,0]),
-            point - np.array([stepy,0]),
-            point + np.array([0,stepx]),
-            point - np.array([0,stepx]),
-        ]
+                point + np.array([stepy,0]),
+                point - np.array([stepy,0]),
+                point + np.array([0,stepx]),
+                point - np.array([0,stepx]),
+                point + np.array([stepy,stepx]),
+                point - np.array([stepy,stepx]),
+                point + np.array([stepy,-stepx]),
+                point + np.array([-stepy,stepx]),
+            ]
+
         for candidate in candidates:
             valid_index = (candidate[0] >= 0) \
                 and (candidate[1] >= 0) \

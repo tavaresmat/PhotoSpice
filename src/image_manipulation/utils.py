@@ -91,7 +91,7 @@ def inflate(image, analyzed=None):
     plt.imshow(image)
     plt.show()'''
 
-    return image
+    return image, kernel_size
 
 def open_rgb_image (path):
     cv2_img = cv2.imread(path)
