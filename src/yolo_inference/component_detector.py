@@ -89,7 +89,7 @@ class ComponentDetector():
     def generate_netlist(self):
         components = self.__last_predictions.copy() # components list
         image = self.__last_binarized.copy()
-        image = inflate(image)
+        image, _ = inflate(image)
         img_graph = ImageGraph(binarized_image=image)
 
         components_outpoints = [[] for _,_ in components.iterrows()] 
@@ -114,8 +114,8 @@ class ComponentDetector():
             new_p1 = .9*p1 + .1*p2
             new_p2 = .9*p2 + .1*p1
             cv2.rectangle (image, new_p1.astype(int), new_p2.astype(int), 0, -1)
-        image = inflate(image, analyzed=self.__last_binarized)
-        img_graph = ImageGraph(binarized_image=image)
+        image, trace_median_width = inflate(image, analyzed=self.__last_binarized)
+        img_graph = ImageGraph(binarized_image=image, grid=trace_median_width*0.5)
 
         components['value'] = 0
         for index, data in components.iterrows(): # discovering and saving values
