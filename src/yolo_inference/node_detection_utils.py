@@ -18,22 +18,55 @@ def string_to_array(sarray:str) -> np.ndarray:
 def bboxes_centers_and_fill_outpoints (components, img_graph, components_out_points):
     '''fill "components_out_points" with outpoints positions as string-keys and return bboxes centers'''
     bboxes_centers = []
-    for index, data in components.iterrows(): # saving centers and out-connections of each component
+    for i, data in components.iterrows(): # saving centers and out-connections of each component
         component_center = bbox_center (data)
         bboxes_centers.append (component_center)
         connections_beginnings:list[np.ndarray] = img_graph.outpoints(data)
         for array in connections_beginnings:
-            components_out_points[index].append(array_to_string(array))
+            components_out_points[i].append(array_to_string(array))
     
     return bboxes_centers
 
-def bboxes_collisions(components: pd.DataFrame) -> list[any]: # maybe a collision class would be desirable
-    '''returns a list of collisions between bboxes in "components" dataframe'''
-    raise NotImplementedError()
+def filter_bboxes_overlap_by_confidence(components: pd.DataFrame, max_area: float) -> any: # maybe a collision class would be desirable
+    '''returns a list of collisions between bboxc.es in "components" dataframe'''
+    to_drop = set()
+    n_components = components.shape[0]
+    for i in range(n_components):
+        for j in range(i+1, n_components):
+            c = components
+            far_horizontally = (c.at[i,'xmin'] > c.at[j, 'xmax']) or (c.at[j,'xmin'] > c.at[i, 'xmax'])
+            far_vertically = (c.at[i, 'ymin'] > c.at[j, 'ymax']) or (c.at[j,'ymin'] > c.at[i, 'ymax'])    
+            
+            print (f'{i} - {j}: h:{far_horizontally}, v:{far_vertically}')
+            if far_vertically or far_horizontally:
+                continue
+            else:
+                d1 = c.at[i,'ymax'] - c.at[j, 'ymin']
+                d2 = c.at[j,'ymax'] - c.at[i, 'ymin']
+                intersection_height = min(d1, d2) 
 
-def filter_collision(components: pd.DataFrame, collision: any) -> pd.DataFrame:
-    '''returns "components" dataframe filtering by confidence collided components'''
-    raise NotImplementedError()
+                d1 =  c.at[i,'xmax'] - c.at[j, 'xmin']
+                d2 = c.at[j,'xmax'] - c.at[i, 'xmin']
+                intersection_width = min(d1, d2)
+
+                # intersection is correct just if a box dont contains the other, otherwise is bigger
+                intersection = intersection_height* intersection_width
+                
+                areas = [
+                    (c.at[i, 'xmax'] - c.at[i, 'xmin']) * (c.at[i, 'ymax'] - c.at[i, 'ymin']),
+                    (c.at[j, 'xmax'] - c.at[j, 'xmin']) * (c.at[j, 'ymax'] - c.at[j, 'ymin']),
+                ]
+
+                if (intersection < max_area * min(areas)):
+                    continue
+    
+                if c.at[i, 'confidence'] < c.at[j, 'confidence']:
+                    to_drop.add(i)
+                elif c.at[i, 'confidence'] > c.at[j, 'confidence']:
+                    to_drop.add(j)
+    
+    c.drop (to_drop, inplace=True)
+    c.reset_index(inplace=True)
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
@@ -80,9 +113,9 @@ def bfs_anchieved_vertices_and_lesser_node(
                 queue.append(neighbor)
     
     conex_graph_component = []
-    for index,boolean in enumerate(visited):
+    for i,boolean in enumerate(visited):
         if boolean:
-            conex_graph_component.append (index)
+            conex_graph_component.append (i)
 
 
     return (

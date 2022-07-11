@@ -2,12 +2,19 @@ from matplotlib import pyplot as plt
 from src.yolo_inference.component_detector import ComponentDetector
 import cv2
 
-IMAGE = 'dataset\cimages\sampleC11.jpg'
-#IMAGE = 'dataset/test/test3.png'
-detector = ComponentDetector(weights='models/components mAP.97 close2x1 400ep.pt')
-image = cv2.imread(IMAGE)
-detection = detector.predict (image)
-print (detection)
-netlist = detector.generate_netlist()
-print (netlist)
-detector.plot()
+from src.yolo_inference.netlist_generator import NetlistGenerator
+
+IMAGES = [
+    'dataset/cimages/sampleA3.jpg',
+    'dataset/test/test3.png',
+    'dataset/cimages/sampleA9.jpg'
+]
+
+netlist_generator = NetlistGenerator()
+netlists = []
+for imagepath in IMAGES:
+    image = cv2.imread(imagepath)
+    netlist = netlist_generator(image)
+    netlists += [netlist]
+    print (netlists[-1])
+    netlist_generator.plot_debug_image()

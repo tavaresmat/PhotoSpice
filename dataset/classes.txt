@@ -1,9 +1,0 @@
-diode
-capacitor
-inductor
-resistor
-voltage
-signal
-ground0
-ground1
-ground2

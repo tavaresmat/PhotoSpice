@@ -106,3 +106,10 @@ def bbox_center (bbox: pd.Series):
         bbox['ymin'] + bbox['ymax'],
         bbox['xmin'] + bbox['xmax']
     ])
+
+def downgrade_image (img: np.ndarray, max_pixels:int) -> np.ndarray:
+        y, x = img.shape[:2]
+        scale = (max_pixels/(x*y))**0.5
+        if max_pixels < (x*y):
+            img = cv2.resize(img, np.array([x*scale, y*scale]).astype(int) )
+        return img

@@ -1,5 +1,0 @@
-train: /content/drive/MyDrive/yolov5training/numbers2/train_aug/images
-val: /content/drive/MyDrive/yolov5training/numbers2/validation_aug/images
-
-nc: 20
-names: ['8', '3', 'A', '9', '6', 'p', 'F', '4', '2', 'm', 'H', '7', 'k', 'u', 'V', '5', 'n', '1', '0', '-']
