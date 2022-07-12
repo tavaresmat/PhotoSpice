@@ -185,7 +185,7 @@ def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=N
                 ),
                 cv2.FONT_HERSHEY_SIMPLEX,
             font_scale,
-            (*color, 125),
+            (*color, 100),
             font_thickness)
 
 def plot_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=None, thickness=None)->None:

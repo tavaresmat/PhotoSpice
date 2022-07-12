@@ -26,12 +26,12 @@ just_resize = alb.Compose ([
 augmentation_pipeline = alb.Compose (
         [
             alb.augmentations.geometric.resize.Resize (**GENERATED_IMAGES_SIZE, always_apply=True),
-            #alb.augmentations.geometric.transforms.Perspective (scale=(0.04, 0.09)),
-            alb.augmentations.geometric.transforms.Perspective (scale=(0.02, 0.05)),
-            #alb.augmentations.transforms.Flip(p=0.6),
+            alb.augmentations.geometric.transforms.Perspective (scale=(0.04, 0.09)),
+            #alb.augmentations.geometric.transforms.Perspective (scale=(0.02, 0.05)),
+            alb.augmentations.transforms.Flip(p=0.6),
             alb.augmentations.geometric.transforms.Affine (
-                scale=(0.85,1), translate_percent=(-0.02, 0.02),
-                rotate=(-10,10), shear={'x':(-15,15) , 'y': (-15,15)},
+                scale=(0.85,1), translate_percent=(-0.08, 0.08),
+                rotate=(-20,20), shear={'x':(-15,15) , 'y': (-15,15)},
                 cval=0, always_apply=True
             ),
             alb.augmentations.transforms.GaussNoise (
@@ -137,7 +137,7 @@ def augmentation_on_dataset (source_dir:str , destination_dir:str , aug_scale:in
 
 if __name__ == "__main__":
     augmentation_on_dataset (
-        'other_datasets/numbers2/validation', 
-        'other_datasets/numbers2/validation_aug', 
-        aug_scale=4
+        'background_images', 
+        'background', 
+        aug_scale=8
     )
