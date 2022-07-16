@@ -1,4 +1,5 @@
 from math import inf
+import math
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
@@ -15,6 +16,7 @@ from src.yolo_inference.node_detection_utils import (
     string_to_array,
     filter_bboxes_overlap_by_confidence
 )
+from src.yolo_inference.character_box_detector import CharacterBoxDetector
 
 COMPONENTS_MIN_CONFIDENCE = 0.40
 MAX_OVERLAP_AREA = 0.50
@@ -25,7 +27,6 @@ POLARIZED_COMPONENTS = ['diode',
 'voltage', 
 #'signal'
 ]
-POS_ATTR = ['xmin', 'xmax', 'ymin', 'ymax']
 COMPONENT_LETTER = {
     'diode': 'D',
     'resistor': 'R',
@@ -40,9 +41,11 @@ class NetlistGenerator:
     components:pandas.DataFrame = None
     debug_image: np.ndarray = None
     component_detector = None
+    character_detector = None
 
     def __init__(self):
         self.component_detector = ComponentDetector()
+        self.character_detector = CharacterBoxDetector()
 
     def plot_debug_image(self) -> None:
         plt.imshow (self.debug_image)
@@ -52,10 +55,11 @@ class NetlistGenerator:
 
         self.debug_image = None
         image = downgrade_image(image, MAX_INPUT_PIXELS)
+        
         self.components = self.component_detector.predict(image) # self.components list
-        image = self.component_detector.last_binarized
-        image, _ = inflate(image)
-        img_graph = ImageGraph(binarized_image=image)
+        self.binarized_image = image = self.component_detector.last_binarized
+        inflated_image, _ = inflate(image)
+        img_graph = ImageGraph(binarized_image=inflated_image)
         
         self.remove_low_confidences()
         collisions = filter_bboxes_overlap_by_confidence (
@@ -76,7 +80,7 @@ class NetlistGenerator:
                 cv2.circle (self.debug_image, tuple(string_to_array(outpoint))[::-1],
                  self.debug_image.shape[0]//100, (0,200,0), 8)
 
-        image = self.component_detector.last_binarized.copy()
+        self.binarized_no_components = self.binarized_image.copy()
         for _, bbox_data in self.components.iterrows(): #erasing bboxes
             xmin, xmax, ymin, ymax = bbox_data[
                 ['xmin', 'xmax', 'ymin', 'ymax']
@@ -84,13 +88,17 @@ class NetlistGenerator:
             p1, p2 = np.array([xmin+1, ymin+1]), np.array([xmax-1, ymax-1])
             new_p1 = .9*p1 + .1*p2
             new_p2 = .9*p2 + .1*p1
-            cv2.rectangle (image, new_p1.astype(int), new_p2.astype(int), 0, -1)
-        image, trace_median_width = inflate(image, analyzed=self.component_detector.last_binarized)
-        img_graph = ImageGraph(binarized_image=image, grid=trace_median_width*0.5)
+            cv2.rectangle (
+                self.binarized_no_components,
+                new_p1.astype(int), 
+                new_p2.astype(int), 
+                0, 
+                -1
+            )
+        image_to_graph, trace_median_width = inflate(self.binarized_no_components, analyzed=self.component_detector.last_binarized)
+        img_graph = ImageGraph(binarized_image=image_to_graph, grid=trace_median_width*0.5)
 
-        self.components['value'] = 0
-        for index, data in self.components.iterrows(): # discovering and saving values
-            self.components.at[index, 'value'] = self.nearest_value (data[POS_ATTR])
+        self.detect_components_values()
 
         # constructing outpoints graph
         vertices_number = 0
@@ -268,9 +276,31 @@ class NetlistGenerator:
         self.components.drop(to_drop, axis=0, inplace=True)
         self.components.reset_index(inplace=True)
 
-    def nearest_value(self, position:pandas.Series):
-        return 0
-        raise NotImplementedError()
+    def detect_components_values(self):
+        charboxes = self.character_detector.group_characters( 
+            self.binarized_no_components
+        )
+        print (charboxes)
+        self.components['value'] = 0
+        for index, data in self.components.iterrows(): # discovering and saving values
+            self.components.at[index, 'value'] = self.nearest_value (data, charboxes)
+
+    def nearest_value(self, comp_data:pandas.Series, charboxes:pandas.DataFrame):
+        min_dist = math.inf
+        nearest_char = None
+        comp_pos = np.array([comp_data['ycenter'], comp_data['xcenter']])
+        for index, char in charboxes.iterrows():
+            char_pos = np.array ([char['ycenter'], char['xcenter']])
+            cur_dist = np.linalg.norm(char_pos-comp_pos)
+            if cur_dist < min_dist:
+                min_dist = cur_dist
+                nearest_char = char
+
+        if nearest_char is None: 
+            return 0
+        else:
+            return nearest_char['string']
+        
     
     def polarization_points(self, data):
         raise NotImplementedError()

@@ -7,6 +7,8 @@ import cv2
 
 from src.augmentation.bbox_manipulation import plot_inference_bbox
 from src.image_manipulation.utils import binarize
+
+
 class ComponentDetector():
     
     model:any = None

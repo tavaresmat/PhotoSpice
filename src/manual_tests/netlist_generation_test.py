@@ -5,9 +5,8 @@ import cv2
 from src.yolo_inference.netlist_generator import NetlistGenerator
 
 IMAGES = [
-    'dataset/cimages/sampleA3.jpg',
-    'dataset/test/test3.png',
-    'dataset/cimages/sampleA9.jpg'
+    'test.jpeg',
+    'test2.jpeg'
 ]
 
 netlist_generator = NetlistGenerator()

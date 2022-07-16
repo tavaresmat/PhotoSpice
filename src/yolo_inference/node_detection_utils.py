@@ -18,8 +18,11 @@ def string_to_array(sarray:str) -> np.ndarray:
 def bboxes_centers_and_fill_outpoints (components, img_graph, components_out_points):
     '''fill "components_out_points" with outpoints positions as string-keys and return bboxes centers'''
     bboxes_centers = []
+    components['xcenter'] = components['ycenter'] = None
     for i, data in components.iterrows(): # saving centers and out-connections of each component
         component_center = bbox_center (data)
+        components.at[i, 'ycenter'] = component_center[0]
+        components.at[i, 'xcenter'] = component_center[1]
         bboxes_centers.append (component_center)
         connections_beginnings:list[np.ndarray] = img_graph.outpoints(data)
         for array in connections_beginnings:
@@ -27,7 +30,7 @@ def bboxes_centers_and_fill_outpoints (components, img_graph, components_out_poi
     
     return bboxes_centers
 
-def filter_bboxes_overlap_by_confidence(components: pd.DataFrame, max_area: float) -> any: # maybe a collision class would be desirable
+def filter_bboxes_overlap_by_confidence(components: pd.DataFrame, max_area: float) -> any: 
     '''returns a list of collisions between bboxc.es in "components" dataframe'''
     to_drop = set()
     n_components = components.shape[0]
