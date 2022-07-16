@@ -45,10 +45,7 @@ def inflate(image, analyzed=None):
 
     plt.style.use('ggplot')
     matplotlib.use( 'tkagg' )
-    ''' print (f'imagem')
-    plt.imshow(image)
-    plt.show()
-    '''
+
     for i in range(15):
         cut = analyzed[i*shape[0]//15 - (1 if i != 0 else -1) , 0:shape[1]]
         found_edge, found_valley = False, False
@@ -76,20 +73,12 @@ def inflate(image, analyzed=None):
             cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size,)*2)
         )
 
-    '''print (f'imagem dilated')
-    plt.imshow(image)
-    plt.show()'''
-
     for i in range(CLOSINGS):
         image = cv2.morphologyEx(
             image, 
             cv2.MORPH_CLOSE, 
             cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (round(kernel_size),)*2),
         )
-
-    '''print (f'imagem closed')
-    plt.imshow(image)
-    plt.show()'''
 
     return image, kernel_size
 

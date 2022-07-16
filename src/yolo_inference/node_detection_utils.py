@@ -1,6 +1,8 @@
 import math
 import numpy as np
 import pandas as pd
+from src.augmentation.bbox_manipulation import turn_absolute
+from src.image_manipulation.image_graph import ImageGraph
 
 from src.image_manipulation.utils import bbox_center
 
@@ -12,11 +14,14 @@ def array_to_string(array:np.ndarray) -> str:
 
 def string_to_array(sarray:str) -> np.ndarray:
     list_str = sarray.split('x')
-    mapped = map(lambda s: int(s) , list_str)
+    mapped = map(lambda s: float(s) , list_str)
     return np.array (list(mapped))
 
-def bboxes_centers_and_fill_outpoints (components, img_graph, components_out_points):
-    '''fill "components_out_points" with outpoints positions as string-keys and return bboxes centers'''
+def bboxes_centers_and_fill_outpoints (components, img_graph: ImageGraph, components_out_points):
+    '''
+    fill "components_out_points" with outpoints positions as string-keys and return bboxes centers,
+    all returned in relative (0.0 ~ 1.0) coordinates
+    '''
     bboxes_centers = []
     components['xcenter'] = components['ycenter'] = None
     for i, data in components.iterrows(): # saving centers and out-connections of each component
@@ -24,9 +29,14 @@ def bboxes_centers_and_fill_outpoints (components, img_graph, components_out_poi
         components.at[i, 'ycenter'] = component_center[0]
         components.at[i, 'xcenter'] = component_center[1]
         bboxes_centers.append (component_center)
-        connections_beginnings:list[np.ndarray] = img_graph.outpoints(data)
+        connections_beginnings:list[np.ndarray] = img_graph.outpoints(
+            turn_absolute (data, img_graph.binarized_image.shape)
+        )
         for array in connections_beginnings:
-            components_out_points[i].append(array_to_string(array))
+            relative_array = array * (1/np.array(img_graph.binarized_image.shape))
+            components_out_points[i].append( 
+                array_to_string(relative_array) 
+            )
     
     return bboxes_centers
 
@@ -40,7 +50,7 @@ def filter_bboxes_overlap_by_confidence(components: pd.DataFrame, max_area: floa
             far_horizontally = (c.at[i,'xmin'] > c.at[j, 'xmax']) or (c.at[j,'xmin'] > c.at[i, 'xmax'])
             far_vertically = (c.at[i, 'ymin'] > c.at[j, 'ymax']) or (c.at[j,'ymin'] > c.at[i, 'ymax'])    
             
-            print (f'{i} - {j}: h:{far_horizontally}, v:{far_vertically}')
+            #print (f'{i} - {j}: h:{far_horizontally}, v:{far_vertically}')
             if far_vertically or far_horizontally:
                 continue
             else:

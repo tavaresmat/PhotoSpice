@@ -6,7 +6,7 @@ import pandas
 import torch
 import cv2
 
-from src.augmentation.bbox_manipulation import plot_inference_bbox
+from src.augmentation.bbox_manipulation import normalize_coords, plot_inference_bbox
 from src.image_manipulation.utils import bbox_center, binarize
 from src.yolo_inference.node_detection_utils import filter_bboxes_overlap_by_confidence
 
@@ -73,7 +73,7 @@ class CharacterBoxDetector():
             char_number += 1
             del indexes[0]
 
-            next_char, next_index = next_right_box (current_char, chars) # NOT IMPLEMENTED UNDRAW CRITERIA 
+            next_char, next_index = next_right_box (current_char, chars) 
             while (next_char is not None):
                 indexes.remove (next_index)
                 xcenter += next_char['xcenter'] # will turn into an average at the final
@@ -82,20 +82,20 @@ class CharacterBoxDetector():
                 current_string += next_char['name']
                 xmax = next_char['xmax']
                 next_char, next_index = next_right_box (next_char, chars) 
-            charboxes = charboxes.append(
-                {
-                    'string': current_string,
-                    'xcenter': int(xcenter/char_number), # that's an average
-                    'ycenter':  int(ycenter/char_number), # that's an average
-                    'xmin': int(xmin),
-                    'xmax': int(xmax)
-                },
-                ignore_index=True
-            )
+            new_string_df = pandas.DataFrame({
+                    'string': [current_string],
+                    'xcenter': [int(xcenter/char_number)], # that's an average
+                    'ycenter':  [int(ycenter/char_number)], # that's an average
+                    'xmin': [int(xmin)],
+                    'xmax': [int(xmax)],
+                    'ymin': 0.0, #not implemented
+                    'ymax': 0.0 #not implemented
+            })
+            charboxes = pandas.concat([charboxes, new_string_df])
             current_string = ''
         
 
-        return charboxes
+        return normalize_coords(charboxes, img.shape)
             
 
     def plot(self, img=None, boxes=None):

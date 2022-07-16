@@ -4,10 +4,10 @@ import cv2
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas
-from src.augmentation.bbox_manipulation import draw_inference_bbox
+from src.augmentation.bbox_manipulation import draw_inference_bbox, normalize_coords, turn_absolute
 
 from src.image_manipulation.image_graph import ImageGraph
-from src.image_manipulation.utils import downgrade_image, inflate
+from src.image_manipulation.utils import binarize, downgrade_image, inflate
 from src.yolo_inference.component_detector import ComponentDetector
 from src.yolo_inference.node_detection_utils import (
     angle_between,
@@ -20,7 +20,7 @@ from src.yolo_inference.character_box_detector import CharacterBoxDetector
 
 COMPONENTS_MIN_CONFIDENCE = 0.40
 MAX_OVERLAP_AREA = 0.50
-MAX_INPUT_PIXELS = 250_000
+MAX_INPUT_PIXELS = 150_000
 MINIMUM_LINKING_NODE_ANGLE = 80
 
 POLARIZED_COMPONENTS = ['diode', 
@@ -54,11 +54,18 @@ class NetlistGenerator:
     def __call__(self, image:np.ndarray) -> str:
 
         self.debug_image = None
-        image = downgrade_image(image, MAX_INPUT_PIXELS)
-        
-        self.components = self.component_detector.predict(image) # self.components list
-        self.binarized_image = image = self.component_detector.last_binarized
-        inflated_image, _ = inflate(image)
+        self.input_image = image
+        self.input_binarized = binarize(image)
+
+        self.components = self.component_detector.predict(
+            self.input_image
+        ) 
+        self.components = normalize_coords(
+            self.components, 
+            self.component_detector.last_image.shape
+        ) # metrics between 0 and 1
+
+        inflated_image, _ = inflate(self.input_binarized)
         img_graph = ImageGraph(binarized_image=inflated_image)
         
         self.remove_low_confidences()
@@ -74,31 +81,15 @@ class NetlistGenerator:
             components_outpoints # filled by reference
         )
 
-        self.debug_image = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
+        self.debug_image = cv2.cvtColor(self.input_binarized.copy(), cv2.COLOR_GRAY2BGR)
         for component in components_outpoints:
             for outpoint in component:
-                cv2.circle (self.debug_image, tuple(string_to_array(outpoint))[::-1],
-                 self.debug_image.shape[0]//100, (0,200,0), 8)
+                cv2.circle (self.debug_image, 
+                    debug_absolute_coords (string_to_array(outpoint), self.input_binarized),
+                    self.debug_image.shape[0]//100, (0,200,0), 8
+                )
 
-        self.binarized_no_components = self.binarized_image.copy()
-        for _, bbox_data in self.components.iterrows(): #erasing bboxes
-            xmin, xmax, ymin, ymax = bbox_data[
-                ['xmin', 'xmax', 'ymin', 'ymax']
-            ].astype(int)
-            p1, p2 = np.array([xmin+1, ymin+1]), np.array([xmax-1, ymax-1])
-            new_p1 = .9*p1 + .1*p2
-            new_p2 = .9*p2 + .1*p1
-            cv2.rectangle (
-                self.binarized_no_components,
-                new_p1.astype(int), 
-                new_p2.astype(int), 
-                0, 
-                -1
-            )
-        image_to_graph, trace_median_width = inflate(self.binarized_no_components, analyzed=self.component_detector.last_binarized)
-        img_graph = ImageGraph(binarized_image=image_to_graph, grid=trace_median_width*0.5)
-
-        self.detect_components_values()
+        self.erase_components() # populates "connections_image" and "median_trace_width"
 
         # constructing outpoints graph
         vertices_number = 0
@@ -134,7 +125,7 @@ class NetlistGenerator:
                         continue
                     p1 = string_to_array(outpoint)
                     p2 = string_to_array(other_outpoint)
-                    center = bboxes_centers[component_index].astype(int)
+                    center = bboxes_centers[component_index]
                     angle = angle_between(
                         p1 - center,
                         p2 - center
@@ -151,21 +142,36 @@ class NetlistGenerator:
                     adjacency_list[outpoint_index[nearest_outpoint]].add(outpoint_index[outpoint])
 
         # connecting outpoints along the circuit
-        for component_index, component_data in self.components.iterrows(): # for each component
-            print (f'searching connections: component {component_index}')
-            for out_index, outpoint in enumerate(
-                    components_outpoints[component_index]
-                ): # and each outpoint of that component
+        downgraded_path_img = downgrade_image(
+            self.connections_image, 
+            MAX_INPUT_PIXELS
+        )
+
+        img_graph = ImageGraph(
+            binarized_image=downgraded_path_img
+        )
+
+        for component_index, component_data in self.components.iterrows(): 
+            # for each component
+            print ('.', end='' if component_index != self.components.shape[0]-1 else None)
+            current_outpoints = components_outpoints[component_index]
+            for out_index, outpoint in enumerate(current_outpoints): 
+                # and each outpoint of that component
                 if vertex_node[outpoint_index[outpoint]] is not None: 
                     continue
+                
+                array_outpoint = string_to_array(outpoint)
+                # below converting to absolute coordinates
+                abs_outpoint = array_outpoint * np.array(img_graph.binarized_image.shape)
+                abs_outpoint = abs_outpoint.astype(int)
+                abs_components = turn_absolute(self.components, img_graph.binarized_image.shape)
 
                 for other_component_index, collision_point in \
-                    img_graph.bfs_bbox_collisions( # ITERATING BY GENERATOR !
-                        string_to_array(outpoint),
-                        self.components
-                    ): # so, for each outpoint connected to that one
+                img_graph.bfs_bbox_collisions(abs_outpoint, abs_components):
+                    # so, for each outpoint connected to that one
                     # calculate nearest outpoint to the collision point
-                    #print (f'{component_index}-{out_index}-{other_component_index}')
+                    
+                    collision_point = collision_point * (1.0 / np.array(img_graph.binarized_image.shape).astype(float)) #turn relative
                     min_distance = np.Infinity
                     nearest_outpoint = None
                     for sarray in components_outpoints[other_component_index]:
@@ -187,18 +193,17 @@ class NetlistGenerator:
             for neighbor in neighbors:
                 cv2.line (
                     self.debug_image,
-                    string_to_array(index_to_point[vertex])[::-1],
-                    string_to_array(index_to_point[neighbor])[::-1],
+                    debug_absolute_coords(string_to_array(index_to_point[vertex]), self.debug_image),
+                    debug_absolute_coords(string_to_array(index_to_point[neighbor]), self.debug_image),
                     (255,0,0),
                     self.debug_image.shape[0]//100
                 )
-        '''print (outpoint_index)
-        print (adjacency_list)'''
-        draw_inference_bbox(self.debug_image, self.components)
 
          # removing grounds
         for i in grounds_index:
             self.components.drop(i, inplace=True)
+        
+        self.detect_components_values()
 
         # propagating nodes along connected outpoints
         max_node = 1
@@ -257,6 +262,7 @@ class NetlistGenerator:
 
             comp_data['schematic name'] = f'{letter}{components_counts[letter]}'
             name = comp_data['schematic name']
+            self.components.at[comp_index,'name'] = name
             anode = comp_data['anode']
             cathode = comp_data['cathode']
             value = comp_data['value']
@@ -264,6 +270,7 @@ class NetlistGenerator:
                 continue
 
             netlist += f"{name} {anode} {cathode} {value}\n"
+        draw_inference_bbox(self.debug_image, turn_absolute(self.components, self.debug_image.shape))
 
         return netlist
 
@@ -280,27 +287,70 @@ class NetlistGenerator:
         charboxes = self.character_detector.group_characters( 
             self.binarized_no_components
         )
-        print (charboxes)
         self.components['value'] = 0
         for index, data in self.components.iterrows(): # discovering and saving values
             self.components.at[index, 'value'] = self.nearest_value (data, charboxes)
 
     def nearest_value(self, comp_data:pandas.Series, charboxes:pandas.DataFrame):
-        min_dist = math.inf
-        nearest_char = None
+        if (comp_data['name'] in ['diode']):
+            return 0 # no value
+
+        min_dist = [math.inf]*3
+        nearest_chars = [None]*3
         comp_pos = np.array([comp_data['ycenter'], comp_data['xcenter']])
         for index, char in charboxes.iterrows():
             char_pos = np.array ([char['ycenter'], char['xcenter']])
             cur_dist = np.linalg.norm(char_pos-comp_pos)
-            if cur_dist < min_dist:
-                min_dist = cur_dist
-                nearest_char = char
+            for i in range(3):
+                if cur_dist < min_dist[i]:
+                    min_dist[i] = cur_dist
+                    nearest_chars[i] = char
+                    break
 
-        if nearest_char is None: 
+        if not nearest_chars: 
             return 0
         else:
-            return nearest_char['string']
-        
-    
+            return coerent_value(comp_data, nearest_chars)
+
+    def erase_components(self):
+        self.binarized_no_components = self.input_binarized.copy()
+        for _, bbox_data in self.components.iterrows(): #erasing bboxes
+            xmin, xmax, ymin, ymax = bbox_data[
+                ['xmin', 'xmax', 'ymin', 'ymax']
+            ]
+            p1 = np.array([ymin, xmin])
+            p2 = np.array([ymax, xmax])
+            p1, p2 = p1*.9 + p2*.1, p2*.9 + p1*.1
+            cv2.rectangle (
+                self.binarized_no_components,
+                debug_absolute_coords (p1, self.binarized_no_components), 
+                debug_absolute_coords (p2, self.binarized_no_components), 
+                0, 
+                -1
+            )
+        self.connections_image, self.median_trace_width = \
+            inflate(self.binarized_no_components, analyzed=self.component_detector.last_binarized)
+
     def polarization_points(self, data):
         raise NotImplementedError()
+
+def debug_absolute_coords(array, image):
+    return tuple( (array * np.array(image.shape[:2]) ).astype(int))[::-1]
+
+def coerent_value(comp_data: pandas.Series, nearests: list[pandas.Series]):
+    name = comp_data['name']
+    special_symbols = {
+    'resistor': '',
+    'inductor': 'H',
+    'capacitor': 'F',
+    'voltage': 'v',
+    'signal': '*'
+    }
+    symbol = special_symbols[name]
+
+    for i in range(3):
+        if nearests[i] is not None:
+            if nearests[i]['string'].find(symbol) != -1:
+                return nearests[i]['string']
+    
+    return nearests[0]['string']

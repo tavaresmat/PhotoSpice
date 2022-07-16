@@ -206,3 +206,46 @@ def plot_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=N
         draw_inference_bbox(image, pred_dataframe, fontsize, thickness)
         plt.imshow (image)
         plt.show()
+
+def normalize_coords(data, shape):
+    data = data.copy()
+    if type(data) is pd.DataFrame:
+        data: pd.DataFrame = data
+        for i, box in data.iterrows():
+            try:
+                data.at[i, 'xcenter'] = data.at[i, 'xcenter']/shape[1]
+                data.at[i, 'ycenter'] = data.at[i, 'ycenter']/shape[0]
+            except: pass
+            finally:
+                data.at[i, 'xmin'] = data.at[i, 'xmin']/shape[1]
+                data.at[i, 'xmax'] = data.at[i, 'xmax']/shape[1]
+                data.at[i, 'ymin'] = data.at[i, 'ymin']/shape[0]
+                data.at[i, 'ymax'] = data.at[i, 'ymax']/shape[0]
+
+    if type(data) is pd.Series:
+            data['xmin'] /= shape[1]
+            data['xmax'] /= shape[1]
+            data['ymin'] /= shape[0]
+            data['ymax'] /= shape[0]
+    return data
+    
+def turn_absolute(data, shape):
+    data = data.copy()
+    if type(data) is pd.DataFrame:
+        data: pd.DataFrame = data
+        for i, box in data.iterrows():
+            try:
+                data.at[i, 'xcenter'] = data.at[i, 'xcenter']*shape[1]
+                data.at[i, 'ycenter'] = data.at[i, 'ycenter']*shape[0]
+            finally:
+                data.at[i, 'xmin'] = data.at[i, 'xmin']*shape[1]
+                data.at[i, 'xmax'] = data.at[i, 'xmax']*shape[1]
+                data.at[i, 'ymin'] = data.at[i, 'ymin']*shape[0]
+                data.at[i, 'ymax'] = data.at[i, 'ymax']*shape[0]
+    if type(data) is pd.Series:
+            data['xmin'] *= shape[1]
+            data['xmax'] *= shape[1]
+            data['ymin'] *= shape[0]
+            data['ymax'] *= shape[0]
+
+    return data

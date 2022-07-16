@@ -6,7 +6,8 @@ from src.yolo_inference.netlist_generator import NetlistGenerator
 
 IMAGES = [
     'test.jpeg',
-    'test2.jpeg'
+    'test2.jpeg',
+    'test3.jpeg'
 ]
 
 netlist_generator = NetlistGenerator()
