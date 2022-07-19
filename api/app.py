@@ -10,8 +10,8 @@ from src.yolo_inference.netlist_generator import NetlistGenerator
 app = Flask(__name__)
 CORS(app, resources={r"*": {"origins": "*"}})
 
-raw_images_dir = "raw_images"
-app.secret_key = b"laricalarica" # os.getenv("APP_SECRET_KEY").encode("ascii")
+raw_images_dir = "api/raw_images"
+app.secret_key = os.getenv("APP_SECRET_KEY").encode("ascii")
     
 
 @app.route("/image", methods=["POST"])
@@ -26,10 +26,11 @@ def receive_image():
 
 @app.route("/netlist", methods=["GET"])
 def send_netlist():
-    if "image_id" not in session:
-        return jsonify({"msg": "Please, send us an image first."})
+    #if "image_id" not in session:
+    #    return jsonify({"msg": "Please, send us an image first."})
     
-    image_id = session["image_id"]
+    #image_id = session["image_id"]
+    image_id = request.json["id"]
     image = cv2.imread(f"{raw_images_dir}/{image_id}.png")
     netlist_generator = NetlistGenerator()
     netlist = netlist_generator(image)
