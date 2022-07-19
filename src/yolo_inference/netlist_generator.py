@@ -349,7 +349,7 @@ class NetlistGenerator:
 def debug_absolute_coords(array, image):
     return tuple( (array * np.array(image.shape[:2]) ).astype(int))[::-1]
 
-def coerent_value(comp_data: pandas.Series, nearests: list[pandas.Series]):
+def coerent_value(comp_data: pandas.Series, nearests: "list[pandas.Series]"):
     name = comp_data['name']
     special_symbols = {
     'resistor': '',

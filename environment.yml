@@ -21,5 +21,7 @@ dependencies:
   - tqdm
   - pandas
   - flask
+  - flask-cors
   - ngspice
   - pyspice
+  - conda-build

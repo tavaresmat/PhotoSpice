@@ -22,13 +22,22 @@ def receive_image():
     response = jsonify({'msg': 'success', 'id': image_id })
     return response
 
+<<<<<<< HEAD
 @app.route("/netlist/<id>", methods=["GET"])
 def send_netlist(id):
+=======
+@app.route("/netlist", methods=["GET"])
+def send_netlist():
+>>>>>>> 98533db6f6d4e19e9d132a34e291350baef575b3
     #if "image_id" not in session:
     #    return jsonify({"msg": "Please, send us an image first."})
     
     #image_id = session["image_id"]
+<<<<<<< HEAD
     image_id = id
+=======
+    image_id = request.json["id"]
+>>>>>>> 98533db6f6d4e19e9d132a34e291350baef575b3
     image = cv2.imread(f"{raw_images_dir}/{image_id}.png")
     netlist_generator = NetlistGenerator()
     netlist = netlist_generator(image)
