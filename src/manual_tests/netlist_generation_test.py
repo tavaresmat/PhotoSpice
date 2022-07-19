@@ -15,6 +15,9 @@ netlists = []
 for imagepath in IMAGES:
     image = cv2.imread(imagepath)
     netlist = netlist_generator(image)
+
     netlists += [netlist]
+
     print (netlists[-1])
+
     netlist_generator.plot_debug_image()

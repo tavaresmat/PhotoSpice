@@ -189,16 +189,6 @@ class NetlistGenerator:
 
         index_to_point = {index: point for point, index in outpoint_index.items()}
 
-        for vertex, neighbors in enumerate(adjacency_list):
-            for neighbor in neighbors:
-                cv2.line (
-                    self.debug_image,
-                    debug_absolute_coords(string_to_array(index_to_point[vertex]), self.debug_image),
-                    debug_absolute_coords(string_to_array(index_to_point[neighbor]), self.debug_image),
-                    (255,0,0),
-                    self.debug_image.shape[0]//100
-                )
-
          # removing grounds
         for i in grounds_index:
             self.components.drop(i, inplace=True)
@@ -220,6 +210,27 @@ class NetlistGenerator:
                     lesser_node = max_node
                     max_node += 1
                 vertex_node[connected_vertex] = lesser_node
+
+        for vertex, neighbors in enumerate(adjacency_list):
+            for neighbor in neighbors:
+                pos = debug_absolute_coords(string_to_array(index_to_point[vertex]), self.debug_image),
+                
+                cv2.line (
+                    self.debug_image,
+                    debug_absolute_coords(string_to_array(index_to_point[vertex]), self.debug_image),
+                    debug_absolute_coords(string_to_array(index_to_point[neighbor]), self.debug_image),
+                    (255,0,0),
+                    self.debug_image.shape[0]//100
+                )
+                cv2.putText(
+                self.debug_image,
+                f"{vertex_node[vertex]}",
+                pos[0]
+                ,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                int(self.debug_image.shape[1]/1150),
+                (250,0,0),
+                int(self.debug_image.shape[1]/300))
 
         #detecting terminals and linking to nodes
         self.components['anode'] = self.components['cathode'] = None
@@ -294,6 +305,7 @@ class NetlistGenerator:
     def nearest_value(self, comp_data:pandas.Series, charboxes:pandas.DataFrame):
         if (comp_data['name'] in ['diode']):
             return 0 # no value
+
 
         min_dist = [math.inf]*3
         nearest_chars = [None]*3

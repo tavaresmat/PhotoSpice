@@ -94,8 +94,7 @@ class CharacterBoxDetector():
             charboxes = pandas.concat([charboxes, new_string_df])
             current_string = ''
         
-
-        return normalize_coords(charboxes, img.shape)
+        return normalize_coords(charboxes.reset_index(), img.shape)
             
 
     def plot(self, img=None, boxes=None):

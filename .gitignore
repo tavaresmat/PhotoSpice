@@ -1,6 +1,3 @@
+models/diode keypoints.pth
 __pycache__
 *.pyc
-lc-bandpass.png
-test1.jpg
-dataset
-other_datasets
