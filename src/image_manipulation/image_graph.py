@@ -39,7 +39,7 @@ class ImageGraph:
         self.global_visited_vertices = binarized_image * 0 
             
             
-    def outpoints(self, bbox_data:pd.Series) -> list[np.ndarray]:
+    def outpoints(self, bbox_data:pd.Series) -> "list[np.ndarray]":
         '''
         Lists all not-connected points of image that intersects with 
         the bounding box described in "bbox-data"
@@ -74,7 +74,7 @@ class ImageGraph:
         
         return outpoints_centers
 
-    def bfs_bbox_collisions(self, start_point:np.ndarray, bboxes_dataframe:pd.DataFrame) -> tuple[int, np.ndarray]:
+    def bfs_bbox_collisions(self, start_point:np.ndarray, bboxes_dataframe:pd.DataFrame) -> "tuple[int, np.ndarray]":
         '''
         return index of components connected in image to "start_point", according to 
         "bboxes_dataframe" data, and also returns the point of collision between the search and the bbox
@@ -118,7 +118,7 @@ class ImageGraph:
         '''plt.imshow (visited * 100 + self.binarized_image)
         plt.show()'''
 
-    def neighbors_of(self, point:np.ndarray) -> list[np.ndarray]:
+    def neighbors_of(self, point:np.ndarray) -> "list[np.ndarray]":
         neighbors = []
 
         '''if self.grid is None:
