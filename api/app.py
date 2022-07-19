@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, session
+from flask_cors import CORS
 import cv2
 import os
 import base64
@@ -7,18 +8,21 @@ from src.yolo_inference.netlist_generator import NetlistGenerator
 
 
 app = Flask(__name__)
+CORS(app, resources={r"*": {"origins": "*"}})
 
-raw_images_dir = "api/raw_images"
-app.secret_key = os.getenv("APP_SECRET_KEY").encode("ascii")
+raw_images_dir = "raw_images"
+app.secret_key = b"laricalarica" # os.getenv("APP_SECRET_KEY").encode("ascii")
+    
 
 @app.route("/image", methods=["POST"])
 def receive_image():
-    file = request.files["image"]
-    ### check if file is a valid image!
     image_id = len(os.listdir(raw_images_dir))
     session["image_id"] = image_id
-    file.save(f"{raw_images_dir}/{image_id}.png")
-    return jsonify({'msg': 'success', 'id': image_id })
+    with open(f"{raw_images_dir}/{image_id}.png", 'wb') as file:
+        file.write(request.data)
+    
+    response = jsonify({'msg': 'success', 'id': image_id })
+    return response
 
 @app.route("/netlist", methods=["GET"])
 def send_netlist():
