@@ -1,6 +1,8 @@
 name: photospice
 channels:
   - defaults
+  - pytorch
+  - conda-forge
 dependencies:
   - seaborn
   - albumentations
@@ -18,4 +20,6 @@ dependencies:
   - protobuf
   - tqdm
   - pandas
-prefix: /home/tine/anaconda3/envs/photospice
+  - flask
+  - ngspice
+  - pyspice
