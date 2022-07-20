@@ -34,7 +34,7 @@ WEIGHTS_PATH = {
     'signal': 'models/signal keypoints.pth'
 }
 COMPONENT_LETTER = {
-    'diode': 'D',
+    'diode': 'XD',
     'resistor': 'R',
     'inductor': 'L',
     'capacitor': 'C',
