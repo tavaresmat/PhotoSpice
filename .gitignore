@@ -1,3 +1,7 @@
 __pycache__
 *.pyc
 api/raw_images/*
+
+models/diode keypoints.pth
+models/signal keypoints.pth
+models/voltage keypoints.pth

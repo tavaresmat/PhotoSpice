@@ -51,6 +51,7 @@ class CharacterBoxDetector():
         )
         chars = chars.sort_values('xmin')
         chars.reset_index(inplace=True)
+        #self.plot()
 
         chars['xcenter'] = chars['ycenter'] = None
         for index, char in chars.iterrows():
@@ -94,7 +95,8 @@ class CharacterBoxDetector():
             charboxes = pandas.concat([charboxes, new_string_df])
             current_string = ''
         
-        return normalize_coords(charboxes.reset_index(), img.shape)
+        charboxes = charboxes.reset_index()
+        return normalize_coords(charboxes, img.shape)
             
 
     def plot(self, img=None, boxes=None):
@@ -103,7 +105,7 @@ class CharacterBoxDetector():
         if boxes is None:
             boxes = self.last_predictions
 
-        plot_inference_bbox(img, boxes)
+        plot_inference_bbox(cv2.cvtColor(img, cv2.COLOR_GRAY2RGB), boxes)
 
     def show_binarized(self):
         try:
