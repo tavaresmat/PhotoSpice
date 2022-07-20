@@ -1,8 +1,15 @@
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
+
 import cv2
 import os
 import base64
+
+import PySpice.Logging.Logging as Logging
+logger = Logging.setup_logging()
+
+from PySpice.Spice.Netlist import Circuit
+from PySpice.Unit import *
 
 from src.yolo_inference.netlist_generator import NetlistGenerator
 
@@ -22,22 +29,13 @@ def receive_image():
     response = jsonify({'msg': 'success', 'id': image_id })
     return response
 
-<<<<<<< HEAD
 @app.route("/netlist/<id>", methods=["GET"])
 def send_netlist(id):
-=======
-@app.route("/netlist", methods=["GET"])
-def send_netlist():
->>>>>>> 98533db6f6d4e19e9d132a34e291350baef575b3
     #if "image_id" not in session:
     #    return jsonify({"msg": "Please, send us an image first."})
     
     #image_id = session["image_id"]
-<<<<<<< HEAD
     image_id = id
-=======
-    image_id = request.json["id"]
->>>>>>> 98533db6f6d4e19e9d132a34e291350baef575b3
     image = cv2.imread(f"{raw_images_dir}/{image_id}.png")
     netlist_generator = NetlistGenerator()
     netlist = netlist_generator(image)
@@ -61,11 +59,31 @@ def send_netlist():
 ### A terminar
 @app.route("/simulation", methods=["POST"])
 def simulate():
-    if "image_id" not in session:
-        return jsonify({"msg": "Please, send us an image first."})
-    
     new_netlist = request.form["new_netlist"]
     simulation_parameters = request.form["simulation_parameters"]
+    raw_netlist = ""
+    for sublist in new_netlist:
+        line = ""
+        for item in sublist:
+            line += item
+        line += "\n"
+        raw_netlist += line
+    
+    #netlist_text = [ item for sublist in new_netlist for item in sublist ]
+
+    match simulation_parameters["simulation_type"]:
+        case "op":
+            circuit = Circuit("My circuit")
+            circuit.raw_spice = raw_netlist
+            print("Starting simulation in operating point:")
+            print(circuit)
+            simulator = circuit.simulator()
+            results = simulator.operating_point()
+            return jsonify({
+                        'msg': 'success',
+                        'netlistResponse': results._nodes
+            })
+
     
     
 
