@@ -10,6 +10,8 @@ import PySpice.Logging.Logging as Logging
 logger = Logging.setup_logging()
 
 from PySpice.Spice.Netlist import Circuit
+from PySpice.Doc.ExampleTools import find_libraries
+from PySpice.Spice.Library import SpiceLibrary
 from PySpice.Unit import *
 
 from src.yolo_inference.netlist_generator import NetlistGenerator
@@ -78,6 +80,10 @@ def simulate():
     circuit = Circuit("PhotoSpice Circuit")
     circuit.raw_spice = raw_netlist
     print(circuit)
+
+    libraries_path = find_libraries()
+    spice_library = SpiceLibrary(libraries_path)
+    circuit.include(spice_library['1N4148'])
 
     if simulation_parameters["simulationType"] == "op":
         print("Starting simulation in operating point:")
