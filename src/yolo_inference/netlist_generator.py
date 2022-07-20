@@ -302,7 +302,7 @@ class NetlistGenerator:
 
     def nearest_value(self, comp_data:pandas.Series, charboxes:pandas.DataFrame):
         if (comp_data['name'] in ['diode']):
-            return 0 # no value
+            return "1N4148" # no value
 
 
         min_dist = [math.inf]*3

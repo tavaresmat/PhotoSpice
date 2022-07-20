@@ -55,7 +55,7 @@ def send_netlist(id):
 @app.route("/simulation", methods=["POST"])
 def simulate():
     simulation_data = json.loads(request.data)
-
+    print(simulation_data)
     if "new_netlist" not in simulation_data.keys():
         return {'msg': "sorry, you need to send us back the netlist corrected!" }, 400
     new_netlist = simulation_data["new_netlist"]
@@ -68,6 +68,9 @@ def simulate():
     for sublist in new_netlist:
         line = ""
         for item in sublist:
+            if "*" in item:
+                values = item.split("*")
+                item = f"SIN(0 {values[0]} {'1k' if len(values) <= 1 else values[1]})"
             line += " " + item
         line += "\n"
         raw_netlist += line
