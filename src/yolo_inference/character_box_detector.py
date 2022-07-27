@@ -110,7 +110,6 @@ class CharacterBoxDetector():
     def show_binarized(self):
         try:
             plt.style.use('ggplot')
-            matplotlib.use( 'tkagg' )
         finally:
             plt.imshow(self.last_binarized)
             plt.show()

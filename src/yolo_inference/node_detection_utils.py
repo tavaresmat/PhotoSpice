@@ -78,8 +78,8 @@ def filter_bboxes_overlap_by_confidence(components: pd.DataFrame, max_area: floa
                 elif c.at[i, 'confidence'] > c.at[j, 'confidence']:
                     to_drop.add(j)
     
-    c.drop (to_drop, inplace=True)
-    c.reset_index(inplace=True)
+    components.drop (to_drop, inplace=True)
+    components.reset_index(inplace=True)
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """

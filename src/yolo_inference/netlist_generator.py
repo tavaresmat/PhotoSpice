@@ -48,9 +48,9 @@ class NetlistGenerator:
     debug_image: np.ndarray = None
     component_detector = None
     character_detector = None
-    keypoints_detectors:dict[str, KeypointsNet] = {}
-    components_outpoints: list[list[np.ndarray]] = None
-    vertex_node: list[int] = []
+    keypoints_detectors:'dict[str, KeypointsNet]' = {}
+    components_outpoints: 'list[list[np.ndarray]]' = None
+    vertex_node: 'list[int]' = []
 
     def __init__(self):
         self.component_detector = ComponentDetector()
@@ -62,6 +62,7 @@ class NetlistGenerator:
 
     def __call__(self, image:np.ndarray) -> str:
 
+        image = downgrade_image(image, 800**2)
         self.debug_image = None
         self.input_image = image
         self.input_binarized = binarize(image)
@@ -220,26 +221,6 @@ class NetlistGenerator:
                     max_node += 1
                 self.vertex_node[connected_vertex] = lesser_node
 
-        for vertex, neighbors in enumerate(adjacency_list):
-            for neighbor in neighbors:
-                pos = debug_absolute_coords(string_to_array(index_to_point[vertex]), self.debug_image),
-                cv2.line (
-                    self.debug_image,
-                    debug_absolute_coords(string_to_array(index_to_point[vertex]), self.debug_image),
-                    debug_absolute_coords(string_to_array(index_to_point[neighbor]), self.debug_image),
-                    (255,0,0),
-                    self.debug_image.shape[0]//100
-                )
-                cv2.putText(
-                self.debug_image,
-                f"{self.vertex_node[vertex]}",
-                pos[0]
-                ,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                int(self.debug_image.shape[1]/1150),
-                (250,0,0),
-                int(self.debug_image.shape[1]/300))
-
         #detecting terminals and linking to nodes
         
         self.components['anode'] = self.components['cathode'] = None
@@ -279,6 +260,35 @@ class NetlistGenerator:
                 continue
 
             netlist += f"{name} {anode} {cathode} {value}\n"
+
+        #drawing node links
+        for vertex, neighbors in enumerate(adjacency_list):
+            for neighbor in neighbors:
+                cv2.line (
+                    self.debug_image,
+                    debug_absolute_coords(string_to_array(index_to_point[vertex]), self.debug_image),
+                    debug_absolute_coords(string_to_array(index_to_point[neighbor]), self.debug_image),
+                    (0,0, 210),
+                    self.debug_image.shape[0]//300
+                )
+
+        # writting nodes numbers
+        for vertex, neighbors in enumerate(adjacency_list):
+            for neighbor in neighbors:
+                pos = debug_absolute_coords(string_to_array(index_to_point[vertex]), self.debug_image)
+
+                cv2.putText(
+                self.debug_image,f"{self.vertex_node[vertex]}",
+                pos, cv2.FONT_HERSHEY_SIMPLEX,
+                self.debug_image.shape[1]/800,(0,255,0),
+                int(self.debug_image.shape[1]/200)) # out-border
+
+                cv2.putText(
+                self.debug_image,f"{self.vertex_node[vertex]}",
+                pos, cv2.FONT_HERSHEY_SIMPLEX,
+                self.debug_image.shape[1]/800,(50,50,50),
+                int(self.debug_image.shape[1]/350)) # inner text color
+
         draw_inference_bbox(self.debug_image, turn_absolute(self.components, self.debug_image.shape))
 
         return netlist

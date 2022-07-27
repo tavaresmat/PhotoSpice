@@ -42,7 +42,8 @@ class KeipointsNet:
 
         for i in range(len(list1)):
             checkpoint[list1[i]] = checkpoint[list2[i]]
-            del checkpoint[list2[i]]
+            #del checkpoint[list2[i]]
+        
 
         #mounting model
         self.model.load_state_dict(checkpoint)  

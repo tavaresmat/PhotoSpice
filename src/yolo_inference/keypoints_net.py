@@ -23,6 +23,7 @@ class KeypointsNet:
 
         checkpoint: collections.OrderedDict = torch.load(WEIGHTS_PATH, map_location=self.device)
 
+        '''
         # correcting weights names
         list1 = ["backbone.fpn.inner_blocks.0.weight", 
         "backbone.fpn.inner_blocks.0.bias", "backbone.fpn.inner_blocks.1.weight", 
@@ -42,7 +43,7 @@ class KeypointsNet:
 
         for i in range(len(list1)):
             checkpoint[list1[i]] = checkpoint[list2[i]]
-            del checkpoint[list2[i]]
+            del checkpoint[list2[i]]'''
 
         #mounting model
         self.model.load_state_dict(checkpoint)  

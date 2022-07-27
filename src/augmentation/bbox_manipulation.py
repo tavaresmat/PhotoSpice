@@ -159,9 +159,13 @@ def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=N
     """
 
     if fontsize is None:
-        fontsize = img.shape[1]/1150
+        fontsize = img.shape[1]/1300
     if thickness is None:
-        thickness = img.shape[1]//300
+        thickness = img.shape[1]//900
+    
+    outborder_thickness = int(thickness*3.4)
+
+    inner_color = (255,255,255)
 
     for _, prediction in pred_dataframe.iterrows():
             color = load_or_create_color (prediction['name'])
@@ -184,9 +188,20 @@ def draw_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=N
                     ytext
                 ),
                 cv2.FONT_HERSHEY_SIMPLEX,
-            font_scale,
-            (*color, 100),
-            font_thickness)
+                font_scale,
+                color,
+                outborder_thickness
+            )
+
+            cv2.putText(
+                img, f"{prediction['name']}({ str(prediction['confidence']*100)[:5] }%)",
+                (
+                    values['xmin'],
+                    ytext
+                ),
+                cv2.FONT_HERSHEY_SIMPLEX,font_scale,
+                inner_color, thickness
+            )
 
 def plot_inference_bbox (img:np.array, pred_dataframe:"pd.DataFrame", fontsize=None, thickness=None)->None:
     """
