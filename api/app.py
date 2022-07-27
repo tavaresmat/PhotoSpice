@@ -91,13 +91,14 @@ def simulate():
         results = simulator.operating_point()
         return jsonify({
                     'msg': 'success',
-                    'netlistResponse': results.nodes.__repr__()
+                    'netlistResponse': [f"Node {str(node)}: {float(node):5.2f}" for node in results.nodes.values()]
         })
     elif simulation_parameters["simulation_type"] == "transient":
         print("Starting simulation in transient mode:")
         simulator = circuit.simulator()
-        results = simulator.transient()
+        results = simulator.transient(step_time=simulation_parameters["maximumStep"], end_time=simulation_parameters["stopTime"], step_time=simulation_parameters["maximumStep"])
+
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0",debug=True)
